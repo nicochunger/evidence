@@ -8,8 +8,8 @@ import shutil
 
 # PolyChord imports
 try:
-    import pypolychord as polychord
-    import pypolychord.settings as polysettings
+    from pypolychord import run_polychord
+    from pypolychord.settings import PolyChordSettings
 except ImportError:
     raise ImportError("Install PolyChord to use this module.")
 
@@ -24,7 +24,7 @@ except ImportError:
     rank = 0
     size = 1
 
-from .config import read_config
+from ..config import read_config
 
 HOME = os.getenv('HOME')
 
@@ -44,11 +44,16 @@ def run(configfile, nlive=None, nplanets=None, modelargs={}, **kwargs):
         models for the same target, and 'comment' for different configurations or
         prior of the same model. Only 'target' and 'runid' are mandatory, 
         'comment' is optional.
-        I will also need to add a 'save_path' key for people to indicate where they
+        I will also need to add a 'save_dir' key for people to indicate where they
         want to save the run.
+
+    IDEA add boolean which indicates if the run is RV or not. This can be determined with
+        the value of rundict['nplanets']. If it's Non or it doesn't exist then it's not an 
+        RV run
     """
 
-
+    # TODO Check that 'target' and 'runid' in rundict dont have spaces (or remove them)
+    
     # Read dictionaries from configuration file
     rundict, datadict, priordict, fixeddict, priors = read_config(configfile, nplanets)
     parnames = list(priordict.keys())
@@ -89,10 +94,13 @@ def run(configfile, nlive=None, nplanets=None, modelargs={}, **kwargs):
     nderived = 0
     ndim = len(parnames)
 
+    # TODO test if this can be done by defining a global isodate for all ranks,
+    # they will differ between them, and then broadcast the rank 0 one to the rest
+    # if size > 1.. it would only be 3 lines of code instead of 9
     # Starting time to identify this specific run
-    # Define it only for rank 0 and broadcoast to the rest
+    # Do the broadcasting only if it's being run with more than one core
     if size > 1:
-        # Do the broadcasting only if it's being run with more than one core
+        # Define it only for rank 0 and broadcoast to the rest
         if rank == 0:
             isodate = datetime.datetime.today().isoformat()
         else:
@@ -102,7 +110,7 @@ def run(configfile, nlive=None, nplanets=None, modelargs={}, **kwargs):
         isodate = datetime.datetime.today().isoformat()
 
     # Define PolyChord settings
-    settings = polysettings.PolyChordSettings(ndim, nderived, )
+    settings = PolyChordSettings(ndim, nderived, )
     settings.do_clustering = True
     if nlive is None:
         settings.nlive = 25*ndim
@@ -115,17 +123,20 @@ def run(configfile, nlive=None, nplanets=None, modelargs={}, **kwargs):
         fileroot += '-' + rundict['comment']
 
     # Label the run with nr of planets, live points, nr of cores, sampler and date
-    fileroot += '_k{}'.format(mymodel.nplanets)
+    fileroot += '_k{}'.format(mymodel.nplanets) # FIXME ignore this if it's not an RV run
     fileroot += '_nlive{}'.format(settings.nlive)
     fileroot += '_ncores{}'.format(size)
     fileroot += '_polychord'
     fileroot += '_'+isodate
 
     settings.file_root = fileroot
-    settings.read_resume = False
+    settings.read_resume = False # TODO Think about how to implement resumes
     settings.num_repeats = ndim * 5
     settings.feedback = 1
     settings.precision_criterion = 0.01
+
+    # TODO the save dir will be in the rundict. Use that one.
+    # If no savedir was provided.. look into how to set the path from which the run python script was called
     # Base directory
     ref_dir = os.path.join('ExP', rundict['target'], rundict['runid'], fileroot, 'polychains')
     if 'spectro' in HOME:
@@ -140,7 +151,7 @@ def run(configfile, nlive=None, nplanets=None, modelargs={}, **kwargs):
     ti = time.process_time()
 
     # ----- Run PolyChord ------
-    output = polychord.run_polychord(loglike, ndim, nderived, settings, prior)
+    output = run_polychord(loglike, ndim, nderived, settings, prior)
     # --------------------------
 
     # Stop clocks
@@ -172,15 +183,15 @@ def run(configfile, nlive=None, nplanets=None, modelargs={}, **kwargs):
         output.target = rundict['target']
         output.runid = rundict['runid']
         output.comment = rundict.get('comment', '')
-        output.nplanets = mymodel.nplanets
+        output.nplanets = mymodel.nplanets # TODO change to rundict
         output.nlive = settings.nlive
         output.nrepeats = settings.num_repeats
         output.isodate = isodate
         output.ncores = size
-        output.priors = priors
+        output.priors = priors # TODO Igore if it was not provided inside priordict
         output.datadict = datadict
         output.parnames = parnames
-        output.fixeddict = fixeddict
+        output.fixeddict = fixeddict # FIXME Check if this is really needed in the output
         output.nloglike = nlog
         try:
             output.starparams = rundict['star_params']
@@ -194,9 +205,12 @@ def run(configfile, nlive=None, nplanets=None, modelargs={}, **kwargs):
         dump2pickle_poly(output)
 
         # Copy post processing script to this run's folder
+        # TODO Figure out how to do this within a package and for it to be universal in any machine
         shutil.copy(os.path.join(HOME,'run/post_processing.py'), os.path.join(output.base_dir, '..'))
 
         # Copy model file to this run's folder
+        # TODO Figure out how to do this if you don't know the location of the model file.
+        # Maybe save the class as a pickle and use it from there.
         model = os.path.join(models_path, modulename+'.py')
         shutil.copy(model, os.path.join(output.base_dir, '..'))
 
