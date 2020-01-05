@@ -112,13 +112,13 @@ def run(model, rundict, priordict, polysettings=None):
         output.isodate = isodate
         output.ncores = size
         output.parnames = parnames
-        # output.fixeddict = fixeddict # FIXME Check if this is really needed in the output
         output.nloglike = nlog
 
         # Add additional information if provided
         if 'prior_names' in rundict_keys:
             output.priors = rundict['prior_names']
-        elif 'star_params' in rundict_keys:
+        
+        if 'star_params' in rundict_keys:
             output.starparams = rundict['star_params']
 
         # Print run time
@@ -188,6 +188,31 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate):
         if type(polysettings) is not dict:
             raise TypeError("polysettings has to be dictionary")
         else:
+            setting = 'nlive'
+            if setting in polysettings.keys():
+                if type(polysettings[setting]) is not int:
+                    raise TypeError(f'{setting} has to be an integer (got type {type(polysettings[setting])})')
+
+            setting = 'num_repeats'
+            if setting in polysettings.keys():
+                if type(polysettings[setting]) is not int:
+                    raise TypeError(f'{setting} has to be an integer (got type {type(polysettings[setting])})')
+
+            setting = 'do_clustering'
+            if setting in polysettings.keys():
+                if type(polysettings[setting]) is not bool:
+                    raise TypeError(f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
+
+            setting = 'read_resume'
+            if setting in polysettings.keys():
+                if type(polysettings[setting]) is not bool:
+                    raise TypeError(f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
+
+            setting = 'precision_criterion'
+            if setting in polysettings.keys():
+                if type(polysettings[setting]) is not float:
+                    raise TypeError(f'{setting} has to be a float (got type {type(polysettings[setting])})')
+
             default_settings.update(polysettings)
 
     # Define fileroot name (identifies this specific run)

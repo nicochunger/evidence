@@ -474,10 +474,6 @@ def prior_constructor(input_dict, customprior_dict=None):
         # Iteration over all parameters of a given object
         for parkey in input_dict[objkey]:
 
-            # TODO 
-            if parkey == 'object':
-                continue
-
             parlist = input_dict[objkey][parkey]
 
             if not isinstance(parlist, list):
