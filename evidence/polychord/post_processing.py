@@ -158,9 +158,13 @@ for cat in categories.keys():
 
     # Save figure
     fig.tight_layout()
-    fig.savefig(f'{cat}_posteriors.png', dpi=300)
+    if 'planet' in cat:
+        filename = f"{cat}_{medians[f'{cat}_period']:.2f}_posteriors.png"
+    else: 
+        filename = f'{cat}_posteriors.png'
+    fig.savefig(filename, dpi=300)
     
-# In addition to the category posterior plots, one more plot wiht only the 
+# In addition to the category posterior plots, one more plot with only the 
 # periods of the planets    
 
 if (nplanets != None) and (nplanets != 0):
@@ -208,22 +212,14 @@ if (nplanets != None) and (nplanets != 0):
 if (nplanets != None) and (nplanets != 0):
     print('Plotting phase folds for the planets...')
 
+    # Load model file
     model = pickle.load(open('model.pkl', 'rb'))
-
-    # datadict = output.datadict
-    # parnames = output.parnames
-    fixeddict = model.fixedpardict
 
     # Construct pardict with the median of each parameter
     pardict = {}
     for key in medians.index:
         pardict[key] = medians[key]
-    pardict.update(fixeddict)
-
-    # # Import model to make prediction
-    # import importlib
-    # mod = importlib.import_module(f'model_{output.target}_{output.runid}')
-    # model = mod.Model(fixeddict, datadict, parnames)
+    pardict.update(model.fixedpardict)
 
     # Initialize figure
     fig2, ax2 = plt.subplots(1, nplanets, figsize=(6*nplanets, 5), sharey=True)
