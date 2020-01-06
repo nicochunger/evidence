@@ -21,7 +21,7 @@ try:
     rank = comm.Get_rank()
     size = comm.Get_size()
 except ImportError:
-    print("Install mpi4py to use with OpenMPI.")
+    print("Install mpi4py to use with OpenMPI. Continuing with one thread.")
     rank = 0
     size = 1
 
@@ -96,11 +96,11 @@ def run(model, rundict, priordict, polysettings=None):
     # Save results
     if rank == 0:
         # Cleanup of parameter names
-        # TODO figure out how to delete weight and loglike from here
         paramnames = [(x, x) for x in parnames]
         output.make_paramnames_files(paramnames)
-        parnames.insert(0, 'loglike')
-        parnames.insert(0, 'weight')
+        # Delete loglike and weight columns
+        del output.samples['loglike']
+        del output.samples['weight']
         old_cols = output.samples.columns.values.tolist()
         output.samples.rename(columns=dict(zip(old_cols, parnames)), inplace=True)
 

@@ -49,8 +49,6 @@ samples = output.samples
 print(f'\nNr. of samples in posterior: {len(samples)}', file=f)
 
 # Get the medians and std for each parameter
-del samples['weight']
-del samples['loglike']
 paramnames = samples.columns.values.tolist()
 medians = samples.median()
 stds = samples.std()
@@ -286,7 +284,7 @@ if (nplanets != None) and (nplanets != 0):
     ax2[nplanets-1].legend(loc='best')
     fig2.tight_layout()
     fig2.savefig('phase_folds.png', dpi=300)
-    plt.show()
 # -------------------------------------------
 
+plt.show()
 f.close()
