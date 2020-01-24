@@ -219,14 +219,17 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate):
     rundict['target'] = rundict['target'].replace(' ', '') # Remove any whitespace
     rundict['runid'] = rundict['runid'].replace(' ', '') # Remove any whitespace
     file_root = rundict['target']+'_'+rundict['runid']
+    
     # Add comment if it exists and is not empty
     if 'comment' in rundict_keys:
         if rundict['comment'] != '':
             file_root += '-' + rundict['comment']
+    
     # Add number of planets if it exists
-    elif 'nplanets' in rundict_keys:
+    if 'nplanets' in rundict_keys:
         if rundict['nplanets'] is not None:
             file_root += '_k{}'.format(rundict['nplanets'])
+
     # Label the run with nr of planets, live points, nr of cores, sampler and date
     file_root += '_nlive{}'.format(default_settings['nlive'])
     file_root += '_ncores{}'.format(size)
