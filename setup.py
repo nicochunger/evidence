@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="evidence",
-    version="0.0.2",
+    version="0.0.3",
     author="Nicolas Unger",
     author_email="nicolas.unger@unige.ch",
     description="Calculates the bayesian evidence for radial velocity models.",

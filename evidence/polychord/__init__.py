@@ -7,6 +7,8 @@ import time
 import shutil
 from pathlib import Path
 
+from .post_processing import postprocess
+
 # PolyChord imports
 try:
     from pypolychord import run_polychord
@@ -127,15 +129,20 @@ def run(model, rundict, priordict, polysettings=None):
         # Save output as pickle file
         dump2pickle_poly(output, output.file_root+'.dat')
 
+        base_dir_parent = str(Path(output.base_dir).parent.absolute())
         # Save model as pickle file
-        dump2pickle_poly(model, 'model.pkl', savedir=os.path.join(output.base_dir, '..'))
+        dump2pickle_poly(model, 'model.pkl', savedir=base_dir_parent)
 
         # Copy post processing script to this run's folder
         parent = Path(__file__).parent.absolute()
-        shutil.copy(os.path.join(parent,'post_processing.py'), os.path.join(output.base_dir, '..'))
+        shutil.copy(os.path.join(parent,'post_processing.py'), base_dir_parent)
 
         # Copy model file
-        shutil.copy(model.model_path, os.path.join(output.base_dir, '..'))
+        shutil.copy(model.model_path, base_dir_parent)
+
+        # Run post processing script
+        postprocess(base_dir_parent)
+
 
     return output
 

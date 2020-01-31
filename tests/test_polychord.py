@@ -1,5 +1,7 @@
 import os
 import sys
+import subprocess
+import shutil
 import pytest
 from pathlib import Path
 import importlib
@@ -86,13 +88,13 @@ def test_gaussian_1d():
     # Instantiate model class (pass additional arguments)
     model = mod.Model(fixeddict, datadict, parnames)
 
-    polysettings = {'nlive': 500}
+    polysettings = {'nlive': 100}
 
     output = polychord.run(model, rundict, priordict, polysettings)
 
     # Check that evidence is correct
-    assert abs(output.logZ + 2.0) < 0.3
-
+    assert abs(output.logZ + 2.0) < 0.5
+    
     # Check that output pickle is generated
     output_path = os.path.join(output.base_dir, '..', output.file_root+'.dat')
     assert os.path.exists(output_path)
@@ -106,6 +108,14 @@ def test_gaussian_1d():
     model_pkl_path = os.path.join(output.base_dir, '../model.pkl')
     assert os.path.exists(model_path)
     assert os.path.exists(model_pkl_path)
+
+    # Check that the post processing scirpt has run
+    result_path = os.path.join(output.base_dir, '../results.txt')
+    assert os.path.exists(result_path)
+
+    clean_runs()
+
+
 
 @pytest.mark.slow
 def test_gaussian_2d():
@@ -134,6 +144,8 @@ def test_gaussian_2d():
 
     assert abs(output.logZ + 4.15) < 0.5
 
+    clean_runs()
+
 
 # @pytest.mark.skip(reason="Too slow, coment out this mark to test")
 # def test_51Peg_k1():
@@ -149,3 +161,23 @@ def test_gaussian_2d():
 #     # Think what can be tested reliably
 #     assert output.rundict['nplanets'] == 1
 #     assert output.starparams['star_mass'] == 1.11
+
+
+def clean_runs():
+    # Delete chain folders if there are too many (too keep it clean)
+    chains_path = os.path.join(os.getenv('HOME'), 'evidence/tests/chains/')
+    runs = os.listdir(chains_path)
+    mod_times = []
+    for run in runs:
+        mod_times.append(os.path.getmtime(os.path.join(chains_path, run)))
+
+    # Sorted the runs by modification time and delete all but the last 5
+    sorted_runs = [x for _,x in sorted(zip(mod_times,runs))]
+    while len(sorted_runs) > 5:
+        shutil.rmtree(os.path.join(chains_path, sorted_runs[0]))
+        sorted_runs.pop(0)
+
+    # Check that it worked
+    assert len(os.listdir(chains_path)) == 5
+
+    return
