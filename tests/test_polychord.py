@@ -34,7 +34,7 @@ def poly_setup(nplanets=None):
 def test_polysettings():
     """ Tests the function which defines the run settings for PolyChord """
 
-    model, rundict, priordict = poly_setup(nplanets=1)
+    _, rundict, priordict = poly_setup(nplanets=1)
 
     ndim = len(priordict.keys())
     nderived = 0
