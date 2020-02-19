@@ -133,6 +133,9 @@ def read_priors(inputdict, rundict):
             # Construct prior instance with information on dictionary
             priortype = parlist[2][0]
             pars = parlist[2][1:]
+            # Round parameters so that 2*pi is not that long
+            for i in range(len(pars)):
+                pars[i] = round(pars[i], 4)
             
             priors[objkey+'_'+parkey] = f'{priortype}: {pars}'
 
