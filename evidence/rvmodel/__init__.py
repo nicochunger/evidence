@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import warnings
 from pathlib import Path
 # For running C functions
 from ctypes import cdll, c_double, c_int, POINTER, c_float
@@ -14,21 +15,27 @@ class RVModel(object):
     """
     
     def __init__(self, fixedpardict, datadict, parnames):
-        
+        """
+        Initialize the base model class. This loads the data, counts the number of 
+        planets in the model and provides some basic methods as a base for radial 
+        velocities modelling. The main log_likelihood method should be implemented
+        in the final model class which inherits this one.
+
+        Parameters
+        ----------
+        fixedpardict : dict
+            Dictionary with all the parameters of the model which are fixed and
+            their value.
+        datadict : dict
+            Dictionary with all the information related to the data and the
+            instruments.
+        parnames : array_like
+            List with the names of all free parameters
+        """
+
         # Define self variables
         self.fixedpardict = fixedpardict
         self.parnames = parnames
-        self.datadict = datadict
-        # TODO Think how this will work with this template model
-        # The other file will hace to be copied but this one can stay here
-        # because it is installed as part of the evidence package
-        # self.model_path = Path(__file__).absolute()
-
-
-        # Prepare true anomaly C function
-        self.lib = cdll.LoadLibrary('trueanomaly.so')
-        self.lib.trueanomaly.argtypes = [POINTER(c_double), c_int, c_double,
-                                         POINTER(c_double), c_int, c_double]
 
         # Count number of planets in model
         self.nplanets = 0
@@ -36,12 +43,18 @@ class RVModel(object):
             if 'k1' in par:
                 self.nplanets += 1
 
-        # Save number of instruments
+        # Prepare true anomaly C function
+        self.lib = cdll.LoadLibrary(os.path.join(Path(__file__).parent.absolute(), 'trueanomaly.so'))
+        self.lib.trueanomaly.argtypes = [POINTER(c_double), c_int, c_double,
+                                         POINTER(c_double), c_int, c_double]
+
+        # Save list of instruments
         self.insts = list(datadict.keys())
 
-        # Construct unified data array
+        # Construct unified data array and add column with instrument id
+        self.datadict = datadict
         self.data = pd.DataFrame()
-        for i, instrument in enumerate(list(datadict.keys())):
+        for i, instrument in enumerate(self.insts):
             datadict[instrument]['data']['inst_id'] = np.zeros(len(datadict[instrument]['data']), dtype=np.int) + i
             self.data = pd.concat([self.data,datadict[instrument]['data']], ignore_index=True)
         
@@ -49,9 +62,9 @@ class RVModel(object):
 
 
         
-    def predict_rv(self, pardict, time, exclude_planet=None):
+    def predict_kep_rv(self, pardict, time, exclude_planet=None):
         """
-        Give rv prediction of model at time t. Has the option to exlude the
+        Give rv prediction for all planets at time t. Has the option to exlude the
         contribution of one of the planets. This option is used for phase folds.
         Leave it at None if all planets should be included.
         
@@ -71,8 +84,8 @@ class RVModel(object):
             parameters of all planets (except the exluded planet)
         """
 
-        assert (type(exclude_planet) == None) or (type(exclude_planet) == int), \
-                                        "exclude_planet has to be an integer."
+        assert (type(exclude_planet) == type(None)) or (type(exclude_planet) == int), \
+                f"exclude_planet has to be an {int}, got {type(exclude_planet)}."
 
         # Add fixed parameters to pardict
         pardict.update(self.fixedpardict)
@@ -93,10 +106,17 @@ class RVModel(object):
 
     def log_likelihood(self, x):
         """
-        Compute log likelihood for parameter vector x
+        Compute log likelihood for parameter vector x.
         
-        :param array x: parameter vector, given in order of parnames
-        attribute.
+        Parameters
+        ----------
+        x : array_like
+            Parameter vector, given in order of parnames attribute.
+
+        Returns
+        -------
+        log_likelihood : float
+            Value of the log likelihood for parameter vector x
         """
 
         pardict = {}
@@ -118,21 +138,152 @@ class RVModel(object):
             noise[np.where(self.data['inst_id']==i)] = err[np.where(self.data['inst_id']==i)]**2 + pardict[f'{instrument}_jitter']**2
 
         # RV prediction
-        rvm = self.predict_rv(pardict, t)
+        rvm = self.predict_kep_rv(pardict, t)
+
+        # Add drift (if there is one)
+        rvm += self.drift(pardict, t)
 
         # Residual
         res = y - rvm
 
-        loglike = self.loglikelihood(res, noise)
+        loglike = self.logL(res, noise)
 
         return loglike
 
 
-    def loglikelihood(self, residuals, noise):
-        N = len(residuals)
+    def logL(self, residuals, noise):
+        """
+        Basic log likelihood function with gaussian white noise.
+
+        Parameters
+        ----------
+        residuals : ndarray
+            Residuals between the data and the model
+        noise : ndarray
+            Array for the noises of each data point. This should include all
+            instrumental errors as well as any additional jitter noise.
+
+        Returns
+        -------
+        loglikelihood : float
+            Value of the log(Likelihood)
+        """
+
+        N = len(residuals) # Number of data points
         cte = -0.5 * N * np.log(2*np.pi)
         return cte - np.sum(np.log(np.sqrt(noise))) - np.sum(residuals**2 / (2 * noise))
 
+
+    def drift(self, pardict, time):
+        """
+        Calculate the contribution of a global drift to the RV.
+        Up to fourth order polynomials.
+
+        Parameters
+        ---------
+        pardict : dict
+            Dictionary with the values for all parameters. In this case it will
+            look for ['drift_lin', 'drift_quad', 'drift_cub', 'drift_quar'].
+            Units for these parameters should be m/s/yr^(order)
+        time : ndarray
+            Time(s) for which to calculate the drift.
+
+        Returns
+        -------
+        drift : ndarray
+            Predicted radial velocities for the global drift
+        """
+
+        parameters = list(pardict.keys())
+        lin, quad, cub, quar = (0., 0., 0., 0.)
+
+        # Search for drift parameters in the pardict
+        if 'drift_lin' in parameters:
+            lin = pardict['drift_lin']
+        if 'drift_quad' in parameters:
+            quad = pardict['drift_quad']
+        if 'drift_cub' in parameters:
+            cub = pardict['drift_cub']
+        if 'drift_quar'in parameters:
+            quar = pardict['drift_quar']
+
+        # Shift time with given reference time and convert to years
+        tref = 0
+        if 'drift_tref' in parameters:
+            tref = pardict['drift_tref']
+        else:
+            tref = time[0]
+
+        # Check that there is no strange parameter in drift
+        for par in parameters:
+            if 'drift' in par:
+                if par[6:] not in ['lin', 'quad', 'cub', 'quad', 'tref']:
+                    warnings.warn(f"Found custom parameter '{par}' in drift which will"+\
+                                    " not be taken into account unless it was"+\
+                                    " specifically used in your model.")
+
+        tt = (time - tref)/365.25
+        drift = lin*tt + quad*tt**2 + cub*tt**3 + quar*tt**4
+
+        return drift
+
+
+    def linear_parameter(self, time, indicator, pardict, par, kernel='gaussian', timescale=0.5):
+        """
+        RV prediction for a linear dependece with some activity indicator. With
+        option to smooth using a gaussian, box or epanechnikov kernel.
+
+        Parameters
+        ----------
+        time : ndarray or float
+            Time(s) for which to calculate the drift.
+        indicator : ndarray
+            Time series for the indicator that will be used as a linear dependence.
+            Has to have the same length as time
+        pardict : dict
+            Dictionary with all the parameters and their values
+        par : str
+            Name of the parameters that is the scale for the linear parameter
+        kernel : str, optional
+            Kernel that will be used to smooth the series. This can be None if 
+            no smoothing should be applied. Or the smoothing options are 'gaussian',
+            'box', and 'epanechnikov'.
+        timescale : float
+            Time scale for the smoothing.
+
+        Returns
+        -------
+        linear_scale : ndarray
+            Array with the RV prediction for this linear dependence.
+        """
+
+        assert len(time) == len(indicator), "time and indicator have to have the \
+                                             same length."
+        # Smooth time series of chosen indicator
+        renorm_time = time/(365.25 * timescale)
+        series_smoothed = np.empty_like(indicator)
+        for k in range(renorm_time.size):
+            delta_t = renorm_time - renorm_time[k]
+            if kernel == 'gaussian':
+                w = np.exp(-0.5 * delta_t**2)
+            elif kernel == 'box':
+                w = np.abs(delta_t)<=1.0
+            elif kernel == 'epanechnikov':
+                w = (np.abs(delta_t)<=1.0)*(1.0-delta_t**2)
+            else:
+                raise ValueError("Chosen kernel is not a valid option.")
+
+            # Normalize
+            w /= np.sum(w)
+            series_smoothed[k] = np.sum(w*indicator)
+
+        # Normalize smoothed series to the interval [-1, 1]
+        maxval = np.max(series_smoothed)
+        minval = np.min(series_smoothed)
+        norm_smooth = 2.0*(series_smoothed-minval)/(maxval-minval) - 1.0
+        
+        # Calculate predicted RV
+        return pardict[par] * norm_smooth
 
     def modelk(self, pardict, time, planet):
         """
@@ -157,6 +308,7 @@ class RVModel(object):
             at the specidied times.
         """
 
+        # Extract semi amplitude and period
         try:
             K_ms = pardict[f'planet{planet}_k1']
         except KeyError:

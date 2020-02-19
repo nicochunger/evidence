@@ -9,7 +9,7 @@ from pathlib import Path
 rundict = {
     'target': 'gaussian',
     'runid': '1d',
-    'save_dir': 'tests/chains'
+    'save_dir': os.path.join(Path(__file__).parent.parent.parent.absolute(), 'chains')
 }
 
 # -------------------

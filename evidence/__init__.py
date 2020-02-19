@@ -1,8 +1,5 @@
 """ 
-The init wont have anything.
+The init won't have anything.
 
-Each evidence estimator will be it's own module
-
-
-
+Each evidence estimator will be it's own submodule
 """

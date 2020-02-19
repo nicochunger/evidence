@@ -65,14 +65,15 @@ def run(model, rundict, priordict, polysettings=None):
     ndim = len(parnames)
 
     # Starting time to identify this specific run
-    # Do the broadcasting only if it's being run with more than one core
+    # If it's being run with more than one core the isodate on the first core
+    # is broadcasted to the rest so they all share the same variable
     isodate = datetime.datetime.today().isoformat()
     if size > 1:
         isodate = comm.bcast(isodate, root=0)
 
 
     # Create PolyChordSettings object for this run
-    settings = set_polysettings(rundict, polysettings, ndim, nderived, isodate)
+    settings = set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames)
 
     # Initialise clocks
     ti = time.process_time()
@@ -109,6 +110,9 @@ def run(model, rundict, priordict, polysettings=None):
         # Assign additional parameters to output
         output.runtime = datetime.timedelta(seconds=tf-ti)
         output.rundict = rundict.copy()
+        output.datadict = dict(model.datadict)
+        output.fixedpardict = dict(model.fixedpardict)
+        output.model_name = str(model.model_path.stem)
         output.nlive = settings.nlive
         output.nrepeats = settings.num_repeats
         output.isodate = isodate
@@ -131,7 +135,8 @@ def run(model, rundict, priordict, polysettings=None):
 
         base_dir_parent = str(Path(output.base_dir).parent.absolute())
         # Save model as pickle file
-        dump2pickle_poly(model, 'model.pkl', savedir=base_dir_parent)
+        shutil.copy(model.model_path, base_dir_parent)
+        # dump2pickle_poly(model, 'model.pkl', savedir=base_dir_parent)
 
         # Copy post processing script to this run's folder
         parent = Path(__file__).parent.absolute()
@@ -158,7 +163,7 @@ def dump2pickle_poly(output, filename, savedir=None):
 
     if savedir is None:
         # Save directory in parent of base dir
-        pickledir = os.path.join(output.base_dir, '..')
+        pickledir = Path(output.base_dir).parent
     else:
         # Unless specified otherwhise
         pickledir = savedir
@@ -172,7 +177,7 @@ def dump2pickle_poly(output, filename, savedir=None):
 
     return
 
-def set_polysettings(rundict, polysettings, ndim, nderived, isodate):
+def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     """ 
     Sets the correct settings for polychord and returns
     the PolyChordSettings object.
@@ -193,7 +198,7 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate):
     # Update default values with settings provided by user
     if polysettings != None:
         if type(polysettings) is not dict:
-            raise TypeError("polysettings has to be dictionary")
+            raise TypeError("polysettings has to be a dictionary")
         else:
             setting = 'nlive'
             if setting in polysettings.keys():
@@ -235,7 +240,16 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate):
     # Add number of planets if it exists
     if 'nplanets' in rundict_keys:
         if rundict['nplanets'] is not None:
-            file_root += '_k{}'.format(rundict['nplanets'])
+            file_root += f'_k{rundict["nplanets"]}'
+
+    # Check if there is a drift and add "d{n}" to file name
+    drift_order = 0
+    for par in parnames:
+        if 'drift' in par:
+            if par[6:] in ['lin', 'quad', 'cub', 'quar']:
+                drift_order += 1
+    if drift_order > 0:
+        file_root += f'_d{drift_order}'
 
     # Label the run with nr of planets, live points, nr of cores, sampler and date
     file_root += '_nlive{}'.format(default_settings['nlive'])

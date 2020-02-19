@@ -48,8 +48,14 @@ hamiltondict = {'offset': [0., 1, ['Uniform', -10, 10]],
                 'jitter': [0.75, 1, ['Uniform', 0., 50.]]
                }
 
+driftdict = {'lin': [0., 1, ['Uniform', -100, 100]],
+             'tref': [51050, 0.],
+             'reloco': [345345, 0]
+             }
+
 input_dict = {'planet1': planetdict1,
               'hamilton': hamiltondict,
+              'drift': driftdict,
               }
 
 # Build config dict

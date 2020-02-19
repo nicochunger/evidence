@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
+import sys
+import importlib
 from pathlib import Path
 from uncertainties import ufloat, umath
 
@@ -32,6 +34,9 @@ def postprocess(path):
     print(f'Live points: {output.nlive}', file=f)
     print(f'Repeats in slice sampling: {output.nrepeats}', file=f)
     print(f'Cores used: {output.ncores}', file=f)
+    print(f'Run time = {output.runtime}', file=f)
+    print(f'Likelihood calculations = {output.nloglike}', file=f)
+    
     nplanets = None
     if 'nplanets' in rundict_keys:
         nplanets = output.rundict["nplanets"]
@@ -40,8 +45,6 @@ def postprocess(path):
 
     # Run results
     print('\nResults:', file=f)
-    print(f'Run time = {output.runtime}', file=f)
-    print(f'Likelihood calculations = {output.nloglike}', file=f)
     print(f'Evidence (logZ) = {ufloat(output.logZ, output.logZerr)}', file=f)
 
     # Change direcory of posterior
@@ -159,7 +162,12 @@ def postprocess(path):
         print('Plotting phase folds for the planets...')
 
         # Load model file
-        model = pickle.load(open('model.pkl', 'rb'))
+        # TODO Change this back to having just the model file and not the instanced
+        # version of the model. Write function to do that so this looks cleaner.
+        # model = pickle.load(open(os.path.join(path, 'model.pkl'), 'rb'))
+        model = load_model(output, paramnames)
+        # TODO TEST!!!!
+
 
         # Construct pardict with the median of each parameter
         pardict = {}
@@ -197,7 +205,7 @@ def postprocess(path):
 
                 # Make RV prediction exluding the specified planet
                 # TODO check closly how to also substract all activity parameters
-                prediction = model.predict_rv(pardict, t, planet=n)
+                prediction = model.predict_kep_rv(pardict, t, exclude_planet=n)
                 corrected_data = y - prediction - pardict[f'{instrument}_offset']
                 planet_prediction = model.modelk(pardict, t, planet=n)
                 full_prediction[np.where(model.data['inst_id']==i)] = planet_prediction
@@ -242,6 +250,18 @@ def postprocess(path):
     return
 
 
+def load_model(output, parnames):
+    """ Load model file with data and everything. """
+
+    # Import model file
+    model_path = Path(output.base_dir).parent
+    sys.path.append(model_path)
+    mod = importlib.import_module(output.model_name)
+
+    # Initialize the model with the data and datadict
+    model = mod.Model(output.fixedpardict, output.datadict, parnames)
+
+    return model
 
 def int_hist(hist, bin_edges):
     res = 0
@@ -284,9 +304,11 @@ def min_mass(K, period, ecc, mstar):
 
 
 def semi_mayor_axis(P, mstar):
-    """ Calculates the semimayor axis for a planet.
+    """ 
+    Calculates the semimayor axis for a planet.
     P [days]: orbital period of planet
-    mstar [Msun]: Mass of star in Solar Masses """
+    mstar [Msun]: Mass of star in Solar Masses
+    """
     # Unit conversion
     P *= 86400  # days to seconds
     mstar *= 1.9891e30  # Msun to kg
