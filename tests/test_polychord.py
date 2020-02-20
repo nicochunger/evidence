@@ -108,9 +108,7 @@ def test_gaussian_1d():
 
     # # Check that model files are copied correctly
     model_path = os.path.join(output.base_dir, '../model_gaussian_example.py')
-    model_pkl_path = os.path.join(output.base_dir, '../model.pkl')
     assert os.path.exists(model_path)
-    assert os.path.exists(model_pkl_path)
 
     # Check that the post processing scirpt has run
     result_path = os.path.join(output.base_dir, '../results.txt')

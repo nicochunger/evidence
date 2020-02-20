@@ -1,5 +1,3 @@
-# Model for the star HD40307
-import numpy as np
 import os
 from pathlib import Path
 
@@ -15,16 +13,7 @@ rundict = {
 # -------------------
 # DATA
 # -------------------
-# FIXME name of instrument in datadict and input_dict HAVE to be the same
-# Find a way to do this automatically so there is no messup
-datadict = {
-    # 'hamilton':
-    # {
-    #     'datafile':  os.path.join(Path(__file__).parent.absolute(), '51Peg.rv'),
-    #     'sep': '\t',
-    #     'instrument': 'hamilton'
-    # }
-}
+datadict = {}
 
 # ---------------------
 # PARAMETERS

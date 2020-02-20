@@ -36,7 +36,7 @@ def postprocess(path):
     print(f'Cores used: {output.ncores}', file=f)
     print(f'Run time = {output.runtime}', file=f)
     print(f'Likelihood calculations = {output.nloglike}', file=f)
-    
+
     nplanets = None
     if 'nplanets' in rundict_keys:
         nplanets = output.rundict["nplanets"]
@@ -161,13 +161,8 @@ def postprocess(path):
     if (nplanets != None) and (nplanets != 0):
         print('Plotting phase folds for the planets...')
 
-        # Load model file
-        # TODO Change this back to having just the model file and not the instanced
-        # version of the model. Write function to do that so this looks cleaner.
-        # model = pickle.load(open(os.path.join(path, 'model.pkl'), 'rb'))
+        # Load model
         model = load_model(output, paramnames)
-        # TODO TEST!!!!
-
 
         # Construct pardict with the median of each parameter
         pardict = {}

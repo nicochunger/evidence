@@ -5,21 +5,19 @@ import warnings
 from pathlib import Path
 # For running C functions
 from ctypes import cdll, c_double, c_int, POINTER, c_float
-# Spleaf package for covariance matrix
-from spleaf.rv import Cov
 
-# Definition of Model class
-class RVModel(object):
+
+class BaseModel(object):
     """
-    The model.
+    This is a very basic Model class to intialize and load the necessary
+    attributes and data.
     """
-    
+
     def __init__(self, fixedpardict, datadict, parnames):
         """
-        Initialize the base model class. This loads the data, counts the number of 
-        planets in the model and provides some basic methods as a base for radial 
-        velocities modelling. The main log_likelihood method should be implemented
-        in the final model class which inherits this one.
+        Initialize the base model class. This initialized some attributes and 
+        loads the data. In your custom model class a log_likelihood method 
+        should be implemented.
 
         Parameters
         ----------
@@ -37,6 +35,53 @@ class RVModel(object):
         self.fixedpardict = fixedpardict
         self.parnames = parnames
 
+        # Save list of instruments
+        self.insts = list(datadict.keys())
+
+        # Construct unified data array and add column with instrument id
+        self.datadict = datadict
+        self.data = pd.DataFrame()
+        for i, instrument in enumerate(self.insts):
+            datadict[instrument]['data']['inst_id'] = np.zeros(len(datadict[instrument]['data']), dtype=np.int) + i
+            self.data = pd.concat([self.data,datadict[instrument]['data']], ignore_index=True)
+        
+        return
+
+
+
+# Definition of Radial Velocities Model class
+class RVModel(BaseModel):
+    """
+    This is a base radial velocities model class. This class now contains 
+    all the essentials for any RV model. The idea is that for each new target 
+    you create a model class that inherits from this base model class. 
+    So if a custom model is wanted you only have to rewrite the log_likelihodd() 
+    method with your custom model. For this you can obviously use all the built 
+    in methods like modelk, predict_kep_rv, drift and linear_parameter.
+    """
+    
+    def __init__(self, fixedpardict, datadict, parnames):
+        """
+        Initialize the radial velocities base model class. This loads the data, 
+        counts the number of planets in the model and provides some basic methods 
+        as a base for radial velocities modelling. The main log_likelihood method 
+        should be implemented in the final model class which inherits this one.
+
+        Parameters
+        ----------
+        fixedpardict : dict
+            Dictionary with all the parameters of the model which are fixed and
+            their value.
+        datadict : dict
+            Dictionary with all the information related to the data and the
+            instruments.
+        parnames : array_like
+            List with the names of all free parameters
+        """
+        # Call init from BaseModel class
+        super().__init__(fixedpardict, datadict, parnames)
+
+        # Now add things specific to RV models
         # Count number of planets in model
         self.nplanets = 0
         for par in self.parnames:
@@ -47,16 +92,6 @@ class RVModel(object):
         self.lib = cdll.LoadLibrary(os.path.join(Path(__file__).parent.absolute(), 'trueanomaly.so'))
         self.lib.trueanomaly.argtypes = [POINTER(c_double), c_int, c_double,
                                          POINTER(c_double), c_int, c_double]
-
-        # Save list of instruments
-        self.insts = list(datadict.keys())
-
-        # Construct unified data array and add column with instrument id
-        self.datadict = datadict
-        self.data = pd.DataFrame()
-        for i, instrument in enumerate(self.insts):
-            datadict[instrument]['data']['inst_id'] = np.zeros(len(datadict[instrument]['data']), dtype=np.int) + i
-            self.data = pd.concat([self.data,datadict[instrument]['data']], ignore_index=True)
         
         return
 

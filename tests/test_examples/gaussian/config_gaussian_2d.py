@@ -1,5 +1,3 @@
-# Model for the star HD40307
-import numpy as np
 import os
 from pathlib import Path
 
@@ -8,15 +6,13 @@ from pathlib import Path
 # -------------------
 rundict = {
     'target': 'gaussian',
-    'runid': '1d',
-    'save_dir': 'tests/chains'
+    'runid': '2d',
+    'save_dir': os.path.join(Path(__file__).parent.parent.parent.absolute(), 'chains')
 }
 
 # -------------------
 # DATA
 # -------------------
-# FIXME name of instrument in datadict and input_dict HAVE to be the same
-# Find a way to do this automatically so there is no messup
 datadict = {}
 
 # ---------------------

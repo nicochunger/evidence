@@ -36,8 +36,8 @@ datadict = {
 # ---------------------
 # PARAMETERS
 # --------------------
-planetdict1 = {'k1': [0.0, 1, ['Uniform', 0., 200.]],
-               'period': [0.0, 1, ['UniformFrequency', 1, 1e3]],
+planetdict1 = {'k1': [0.0, 1, ['Jeffreys', 0.1, 100.]],
+               'period': [0.0, 1, ['UniformFrequency', 1, 100]],
                'ecc': [0.1, 1, ['Beta', 0.867, 3.03]],
                'omega': [0.1, 1, ['Uniform', 0., 2*np.pi]],
                'ma0': [0.1, 1, ['Uniform', 0., 2*np.pi]],
