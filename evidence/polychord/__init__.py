@@ -1,10 +1,10 @@
 import os
 import sys
-import numpy as np
 import importlib
 import datetime
 import time
 import shutil
+import numpy as np
 from pathlib import Path
 
 from .post_processing import postprocess
@@ -30,7 +30,52 @@ except ImportError:
 
 def run(model, rundict, priordict, polysettings=None):
     """ 
-    TODO Write detailed documentation of how to run polychord with your own model.
+    Runs PolyChord on the chosen data and model. When PolyChord is finished
+    running it automatically runs a post processing script on the output creating
+    plots of the posterior and saving basic information like the evidence and
+    run settings on a text file for future reference.
+
+    Parameters
+    ----------
+    model : object
+        Custom model class that contains your desired model. This class has to
+        have a method called log_likelihood(x) which takes a parameter array x
+        and returns the corresponding log Likelihood. The order of the array x is
+        given by the order that results from calling list(priordict.keys()) (see
+        description for priordict for more information.)
+        Your custom model class should inherit from either RVModel if it's a 
+        radial velocities model or from BaseModel otherwise.
+    rundict : dict
+        Dictionary with basic information about the run itself. Keys it should 
+        include are:
+            target : Name of target or function to analyse
+            runid : String to identify the specific model or configuration being
+                    used
+            comment (optional) : Optional comment for a third layer of identification
+            prior_names (optional) : List with the names and ranges of the priors
+            nplanets (optional) : Number of planets in the RV model
+            star_params (optional) : Dictionary with the stars parameters like
+                                     star_mass (mass of the star in solar masses),
+                                     star_radius (radius of star in solar radii),
+                                     star_rot (roation period of star)
+            savedir (optional) : Save directory for the output of PolyChord
+    priordict : dict
+        Dictionary with the priors to all free parameters. Keys are the names
+        of the parameters. Values are object with a method .ppf(x) which is the 
+        inverse of the CDF of the chosen probability distribution of the prior.
+        It takes a uniformly sampled number between 0 and 1 and returns the 
+        physical parameter distributed according to the prior. 
+        The method log_likelihood in your custom model should take the same order
+        or parameters that results from calling list(priordict.keys()).
+    polysettings : dict, optional
+        Dictionary containing custom parameters for PolyChord setting like nlive
+        or nrepeats. If None are given the defualt PolyChord settings.
+
+    Returns
+    -------
+    output : PolyChordOutput object
+        Object with the PolyChord output. Several attributes are added before
+        returning. These are used for the post processing script.
     """
 
     # Create list of parameter names
@@ -40,8 +85,8 @@ def run(model, rundict, priordict, polysettings=None):
     # Function to convert from hypercube to physical parameter space
     def prior(hypercube):
         """ 
-        Convert a point in the unit hypercube to the physical parameters using
-        their respective priors. 
+        Converts a point in the unit hypercube to the physical parameters using
+        their respective priors.
         """
 
         theta = []
@@ -153,8 +198,20 @@ def run(model, rundict, priordict, polysettings=None):
 
 
 def dump2pickle_poly(output, filename, savedir=None):
-    """ Takes the output from PolyChord and saves it as a pickle file. """
+    """ 
+    Takes the output from PolyChord and saves it as a pickle file.
 
+    Parameters
+    ----------
+    output : PolyChordOutput object
+        Object file with the output from the PolyChord run
+    filename : str
+        Name of the saved file
+    savedir : str, optional
+        Directory on where to save the pickled file
+    """
+
+    # Try to import pickle. Raise warning if not installed.
     try:
         import pickle
     except ImportError:
@@ -179,8 +236,29 @@ def dump2pickle_poly(output, filename, savedir=None):
 
 def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     """ 
-    Sets the correct settings for polychord and returns
-    the PolyChordSettings object.
+    Sets the correct settings for polychord and returns the PolyChordSettings 
+    object.
+
+    Parameters
+    ----------
+    rundict : dict
+        Dictionary with information about the run itself.
+    polysettings : dict
+        Dictionary with the custom PolyChord settings to be set for this run
+    ndim : int
+        Number of free parameters
+    nderived : int
+        Number of derived parameters
+    isodate : datetime
+        Date stamp to identify the current run
+    parnames : list
+        List containing the names of the free parameters
+
+    Returns
+    -------
+    settings : PolyChordSettings object
+        Object with all the information that PolyChord needs to run nested
+        sampling on this model.
     """
 
     rundict_keys = list(rundict.keys())
