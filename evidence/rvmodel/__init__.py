@@ -11,6 +11,12 @@ class BaseModel(object):
     """
     This is a very basic Model class to intialize and load the necessary
     attributes and data.
+
+    Createad attributes are: 
+    fixeddict : contains all the fixed parameters
+    parnames : names of the free parameters
+    data : DataFrame with the provided data. Column names are the same as in the
+           orginal data frame
     """
 
     def __init__(self, fixedpardict, datadict, parnames):

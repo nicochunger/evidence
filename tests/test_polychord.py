@@ -7,8 +7,7 @@ from pathlib import Path
 import importlib
 import datetime
 
-from evidence import polychord
-from evidence import config
+from evidence import polychord, config
 
 def poly_setup(configfile, nplanets=None):
     """ Sets up a basic polychord run for testing """
@@ -157,7 +156,7 @@ def test_51Peg_k1_d0():
     model, rundict, priordict = poly_setup('config_51Peg_example.py', nplanets=1)
 
     # Settings for PolyChord
-    polysettings = {'nlive': 5}
+    polysettings = {'nlive': 10}
 
     output = polychord.run(model, rundict, priordict, polysettings)
 
