@@ -1,12 +1,17 @@
 import pickle
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
 import sys
 import importlib
 from pathlib import Path
-from uncertainties import ufloat, umath
+
+import matplotlib
+# If running in server the 'Agg' display enviornment has to be used
+home = os.getenv('HOME')
+if 'spectro' in home:
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 def postprocess(path):
     """ Script that does a post processing of the polychord output. It analyses
@@ -45,7 +50,7 @@ def postprocess(path):
 
     # Run results
     print('\nResults:', file=f)
-    print(f'Evidence (logZ) = {ufloat(output.logZ, output.logZerr)}', file=f)
+    print(f'Evidence (logZ) = {output.logZ} +/- {output.logZerr}', file=f)
 
     # Change direcory of posterior
     output.base_dir = os.path.join(path,'polychains')
@@ -77,6 +82,7 @@ def postprocess(path):
     if (nplanets != None) and (nplanets != 0):
         for i in range(nplanets):
             try:
+                from uncertainties import ufloat, umath
                 # Minimum mass calculation
                 K = ufloat(medians[f'planet{i+1}_k1'], stds[f'planet{i+1}_k1'])
                 period = ufloat(medians[f'planet{i+1}_period'], stds[f'planet{i+1}_period'])
@@ -86,7 +92,7 @@ def postprocess(path):
                 print(f"Period = {period}", file=f)
                 print(f"m*sin(i) = {min_mass(K, period, ecc, mstar)} Mearth", file=f)
                 print(f"a = {semi_mayor_axis(period, mstar)} AU", file=f)
-            except KeyError:
+            except (ImportError, KeyError):
                 print("No planet parameters could be extracted because of missing key")
 
     # Done with printing, close file
