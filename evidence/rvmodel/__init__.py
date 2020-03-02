@@ -54,6 +54,29 @@ class BaseModel(object):
         return
 
 
+    def logL(self, residuals, noise):
+        """
+        Basic log likelihood function with gaussian white noise.
+
+        Parameters
+        ----------
+        residuals : ndarray
+            Residuals between the data and the model
+        noise : ndarray
+            Array for the noises of each data point. This should include all
+            instrumental errors as well as any additional jitter noise.
+
+        Returns
+        -------
+        loglikelihood : float
+            Value of the log(Likelihood)
+        """
+
+        N = len(residuals) # Number of data points
+        cte = -0.5 * N * np.log(2*np.pi)
+        return cte - np.sum(np.log(np.sqrt(noise))) - np.sum(residuals**2 / (2 * noise))
+
+
 
 # Definition of Radial Velocities Model class
 class RVModel(BaseModel):
@@ -190,29 +213,6 @@ class RVModel(BaseModel):
         loglike = self.logL(res, noise)
 
         return loglike
-
-
-    def logL(self, residuals, noise):
-        """
-        Basic log likelihood function with gaussian white noise.
-
-        Parameters
-        ----------
-        residuals : ndarray
-            Residuals between the data and the model
-        noise : ndarray
-            Array for the noises of each data point. This should include all
-            instrumental errors as well as any additional jitter noise.
-
-        Returns
-        -------
-        loglikelihood : float
-            Value of the log(Likelihood)
-        """
-
-        N = len(residuals) # Number of data points
-        cte = -0.5 * N * np.log(2*np.pi)
-        return cte - np.sum(np.log(np.sqrt(noise))) - np.sum(residuals**2 / (2 * noise))
 
 
     def drift(self, pardict, time):
