@@ -96,15 +96,25 @@ def get_fixedparvalues(inputdict):
 
 def read_data(datadict):
     for inst in datadict:
-        # Try to get custom separator
+        # Try to get custom parameters
         try:
             sep = datadict[inst]['sep']
         except KeyError:
             sep = '\t'
 
+        try:
+            skiprows = datadict[inst]['skiprows']
+        except KeyError:
+            skiprows = [1, ]
+
+        try:
+            names = datadict[inst]['names']
+        except KeyError:
+            names = None
+
         # Read rdb file
         data = pd.read_csv(datadict[inst]['datafile'], sep=sep,
-                           comment='#', skiprows=[1, ])
+                           comment='#', skiprows=skiprows, names=names)
         datadict[inst]['data'] = data
     return
 
