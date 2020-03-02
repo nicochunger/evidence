@@ -2,6 +2,28 @@
 Evidence Package Changes Log
 --------------------------------------------------------------------------------
 
+--------------------------------------------------------------------------------
+
+Release 0.1.0: March 02, 2020
+
+    - New submodule: rvmodel
+        - This submodel provides two classes to be used for the custom models
+        - BaseModel and rvmodel
+        - BaseModel is a simple class which loads the data and has a log likliehood
+          method for simple gaussian error likelihoods.
+        - RVModel provides all elements needed for a radial velocities method.
+            - Keplerian modeling (true_anomaly impleted in C for better performance)
+            - Drift up to order 4 polynomial
+            - Linear dependence with parameters (like activity indicators)
+    - Added options for reading the datafile like how many rows to skip and
+      passing custom column names. More option can be added if needed
+    - When running RV models the planet periods are now ordered before calculating
+      the log likliehood. This is to avoid parameter jumping (when one parameter
+      jumps between different true planet periods instead of staying in the same).
+      This will also give cleanear posterior distributions as there will only be
+      one peak instead of two or more.
+    - It now checks if it's running in the cluster or server and changes the 
+      matplotlib drawing environment to be able to make and save plots.
 
 --------------------------------------------------------------------------------
 
