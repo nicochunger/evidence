@@ -84,20 +84,36 @@ def run(model, rundict, priordict, polysettings=None):
 
     # Function to convert from hypercube to physical parameter space
     def prior(hypercube):
-        """ 
+        """
         Converts a point in the unit hypercube to the physical parameters using
         their respective priors.
         """
 
-        theta = []
+        theta = np.ones_like(hypercube)
+        idxs = []
+        periods = []
+        names = []
         for i, x in enumerate(hypercube):
-            theta.append(priordict[parnames[i]].ppf(x))
+            param = parnames[i]
+            # Keep track of planet periods to sort them after
+            if ('planet' in param) and ('period' in param):
+                idxs.append(i)
+                periods.append(x)
+                names.append(param)
+            theta[i] = priordict[param].ppf(x)
+        
+        # Sort periods
+        sorted_periods = sorted(zip(periods, names))
+
+        # Calculate priors on the sorted periods
+        for idx, period in zip(idxs, sorted_periods):
+            theta[idx] = priordict[period[1]].ppf(period[0])
         return theta    
 
     
     # LogLikelihood
     def loglike(x):
-        """ 
+        """
         Calculates de logarithm of the Likelihood given the parameter vector x. 
         """
 
@@ -270,7 +286,8 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
                         'do_clustering': True,
                         'read_resume': False,
                         'feedback': 1,
-                        'precision_criterion': 0.01,
+                        'precision_criterion': 0.001,
+                        'boost_posterior': 0.0
                         }
 
     # Update default values with settings provided by user
@@ -356,5 +373,6 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     settings.precision_criterion = default_settings['precision_criterion']
     settings.file_root = default_settings['file_root']
     settings.base_dir = default_settings['base_dir']
+    settings.boost_posterior = default_settings['boost_posterior']
 
     return settings
