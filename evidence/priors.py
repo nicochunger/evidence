@@ -60,7 +60,7 @@ class jeffreys_gen(rv_continuous):
         return cdf
 
     def ppf(self, q, xmin, xmax):
-        return xmin * (float(xmax)/xmin) ** q
+        return xmin * (xmax/xmin) ** q
 
         
 class modjeff_gen(rv_continuous):

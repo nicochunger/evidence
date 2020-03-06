@@ -86,8 +86,11 @@ def postprocess(path):
                 # Minimum mass calculation
                 K = ufloat(medians[f'planet{i+1}_k1'], stds[f'planet{i+1}_k1'])
                 period = ufloat(medians[f'planet{i+1}_period'], stds[f'planet{i+1}_period'])
-                ecc = ufloat(medians[f'planet{i+1}_ecc'], stds[f'planet{i+1}_ecc'])
-                mstar = ufloat(output.starparams['star_mass'], 0.035)
+                if f'planet{i+1}_ecc' in medians.columns.to_list():
+                    ecc = ufloat(medians[f'planet{i+1}_ecc'], stds[f'planet{i+1}_ecc'])
+                else:
+                    ecc = medians[f'planet{i+1}_secos']**2 + medians[f'planet{i+1}_sesin']**2
+                mstar = ufloat(output.starparams['star_mass'][0], output.starparams['star_mass'][1])
                 print(f"\nPlanet {i+1}", file=f)
                 print(f"Period = {period}", file=f)
                 print(f"m*sin(i) = {min_mass(K, period, ecc, mstar)} Mearth", file=f)

@@ -39,7 +39,7 @@ class BaseModel(object):
 
         # Define self variables
         self.fixedpardict = fixedpardict
-        self.parnames = parnames
+        self.parnames = sorted(parnames)
 
         # Save list of instruments
         self.insts = list(datadict.keys())
@@ -48,11 +48,12 @@ class BaseModel(object):
         self.datadict = datadict
         self.data = pd.DataFrame()
         for i, instrument in enumerate(self.insts):
-            datadict[instrument]['data']['inst_id'] = np.zeros(len(datadict[instrument]['data']), dtype=np.int) + i
-            self.data = pd.concat([self.data,datadict[instrument]['data']], ignore_index=True)
-        
-        return
+            datadict[instrument]['data']['inst_id'] = np.zeros(
+                len(datadict[instrument]['data']), dtype=np.int) + i
+            self.data = pd.concat(
+                [self.data, datadict[instrument]['data']], ignore_index=True)
 
+        return
 
     def logL(self, residuals, noise):
         """
@@ -72,10 +73,9 @@ class BaseModel(object):
             Value of the log(Likelihood)
         """
 
-        N = len(residuals) # Number of data points
+        N = len(residuals)  # Number of data points
         cte = -0.5 * N * np.log(2*np.pi)
         return cte - np.sum(np.log(np.sqrt(noise))) - np.sum(residuals**2 / (2 * noise))
-
 
 
 # Definition of Radial Velocities Model class
@@ -88,7 +88,7 @@ class RVModel(BaseModel):
     method with your custom model. For this you can obviously use all the built 
     in methods like modelk, predict_kep_rv, drift and linear_parameter.
     """
-    
+
     def __init__(self, fixedpardict, datadict, parnames):
         """
         Initialize the radial velocities base model class. This loads the data, 
@@ -118,20 +118,19 @@ class RVModel(BaseModel):
                 self.nplanets += 1
 
         # Prepare true anomaly C function
-        self.lib = cdll.LoadLibrary(os.path.join(Path(__file__).parent.absolute(), 'trueanomaly.so'))
+        self.lib = cdll.LoadLibrary(os.path.join(
+            Path(__file__).parent.absolute(), 'trueanomaly.so'))
         self.lib.trueanomaly.argtypes = [POINTER(c_double), c_int, c_double,
                                          POINTER(c_double), c_int, c_double]
-        
+
         return
 
-
-        
     def predict_kep_rv(self, pardict, time, exclude_planet=None):
         """
         Give rv prediction for all planets at time t. Has the option to exlude the
         contribution of one of the planets. This option is used for phase folds.
         Leave it at None if all planets should be included.
-        
+
         Parameters
         ----------
         pardict : dict
@@ -149,11 +148,11 @@ class RVModel(BaseModel):
         """
 
         assert (type(exclude_planet) == type(None)) or (type(exclude_planet) == int), \
-                f"exclude_planet has to be an {int}, got {type(exclude_planet)}."
+            f"exclude_planet has to be an {int}, got {type(exclude_planet)}."
 
         # Add fixed parameters to pardict
         pardict.update(self.fixedpardict)
-    
+
         # Prepare array for planet-induced velocities
         rv_planet = np.zeros((self.nplanets, len(time)))
 
@@ -161,17 +160,16 @@ class RVModel(BaseModel):
             # Skip planet if it is the one to be exluded
             if i != exclude_planet:
                 rv_planet[i-1] = self.modelk(pardict, time, planet=i)
-        
+
         # Sum effect of all planets to predicted velocity
         rv_prediction = rv_planet.sum(axis=0)
 
         return rv_prediction
-  
 
     def log_likelihood(self, x):
         """
         Compute log likelihood for parameter vector x.
-        
+
         Parameters
         ----------
         x : array_like
@@ -186,10 +184,10 @@ class RVModel(BaseModel):
         pardict = {}
         for i, par in enumerate(self.parnames):
             pardict[par] = x[i]
-        
+
         # Add fixed parameters to pardict
         pardict.update(self.fixedpardict)
-        
+
         # Get time, rv, and correct for global offsets
         t = self.data['rjd'].values.copy()
         y = self.data['vrad'].values.copy()
@@ -197,9 +195,11 @@ class RVModel(BaseModel):
         noise = np.zeros_like(err)
         for i, instrument in enumerate(self.insts):
             # Substract offsets
-            y[np.where(self.data['inst_id']==i)] -= pardict[f'{instrument}_offset']
+            y[np.where(self.data['inst_id'] == i)
+              ] -= pardict[f'{instrument}_offset']
             # Add jitter to noise
-            noise[np.where(self.data['inst_id']==i)] = err[np.where(self.data['inst_id']==i)]**2 + pardict[f'{instrument}_jitter']**2
+            noise[np.where(self.data['inst_id'] == i)] = err[np.where(
+                self.data['inst_id'] == i)]**2 + pardict[f'{instrument}_jitter']**2
 
         # RV prediction
         rvm = self.predict_kep_rv(pardict, t)
@@ -213,7 +213,6 @@ class RVModel(BaseModel):
         loglike = self.logL(res, noise)
 
         return loglike
-
 
     def drift(self, pardict, time):
         """
@@ -259,15 +258,14 @@ class RVModel(BaseModel):
         for par in parameters:
             if 'drift' in par:
                 if par[6:] not in ['lin', 'quad', 'cub', 'quad', 'tref']:
-                    warnings.warn(f"Found custom parameter '{par}' in drift which will"+\
-                                    " not be taken into account unless it was"+\
-                                    " specifically used in your model.")
+                    warnings.warn(f"Found custom parameter '{par}' in drift which will" +
+                                  " not be taken into account unless it was" +
+                                  " specifically used in your model.")
 
         tt = (time - tref)/365.25
         drift = lin*tt + quad*tt**2 + cub*tt**3 + quar*tt**4
 
         return drift
-
 
     def linear_parameter(self, time, indicator, pardict, par, kernel='gaussian', timescale=0.5):
         """
@@ -308,9 +306,9 @@ class RVModel(BaseModel):
             if kernel == 'gaussian':
                 w = np.exp(-0.5 * delta_t**2)
             elif kernel == 'box':
-                w = np.abs(delta_t)<=1.0
+                w = np.abs(delta_t) <= 1.0
             elif kernel == 'epanechnikov':
-                w = (np.abs(delta_t)<=1.0)*(1.0-delta_t**2)
+                w = (np.abs(delta_t) <= 1.0)*(1.0-delta_t**2)
             else:
                 raise ValueError("Chosen kernel is not a valid option.")
 
@@ -322,7 +320,7 @@ class RVModel(BaseModel):
         maxval = np.max(series_smoothed)
         minval = np.min(series_smoothed)
         norm_smooth = 2.0*(series_smoothed-minval)/(maxval-minval) - 1.0
-        
+
         # Calculate predicted RV
         return pardict[par] * norm_smooth
 
@@ -360,7 +358,7 @@ class RVModel(BaseModel):
         except KeyError:
             P_day = np.exp(pardict[f'planet{planet}_logperiod'])
 
-        # Calculate eccentricity and mean anomaly at epoch 
+        # Calculate eccentricity and mean anomaly at epoch
         # according to chosen parameters
         # SESIN SECOS ML0
         if f'planet{planet}_secos' in pardict:
@@ -399,7 +397,6 @@ class RVModel(BaseModel):
 
         return K_ms * (np.cos(nu + omega_rad) + ecc * np.cos(omega_rad))
 
-
     def true_anomaly(self, ma, ecc):
         """ 
         Takes the mean anomaly and the eccentricity and computes the true
@@ -423,12 +420,9 @@ class RVModel(BaseModel):
 
         # Pre allocate memory for the result
         nu = np.zeros_like(ma, dtype=c_double)
-        
+
         self.lib.trueanomaly(ma.ctypes.data_as(POINTER(c_double)), len(ma), ecc,
                              nu.ctypes.data_as(POINTER(c_double)), int(1.0e4),
                              c_double(1.0e-4))
 
         return nu
-
-
-

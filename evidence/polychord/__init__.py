@@ -79,8 +79,33 @@ def run(model, rundict, priordict, polysettings=None):
     """
 
     # Create list of parameter names
-    parnames = list(priordict.keys())
+    parnames = model.parnames
     rundict_keys = list(rundict.keys())
+    print(hasattr(model, "log_likelihood"))
+
+    # Count "real" number of planets if not provided by rundict or model
+    nplanets = 0
+    if 'nplanets' in rundict_keys:
+        # Check if nplanets is in rundict
+        nplanets = rundict['nplanets']
+    elif hasattr(model, 'nplanets'):
+        # Check if nplanets is in the model
+        nplanets = model.nplanets
+    else:
+        # Count number of planets by checking for periods
+        for i, par in enumerate(parnames):
+            if ('planet' in par) and ('period' in par):
+                nplanets += 1
+
+    planets = []
+    planet_idxs = []
+    for n in range(1, nplanets+1):
+        planets.append([])
+        for i, par in enumerate(parnames):
+            if f'planet{n}' in par:
+                planets[n-1].append(i)
+                if 'period' in par:
+                    planet_idxs.append(i)
 
     # Function to convert from hypercube to physical parameter space
     def prior(hypercube):
@@ -89,37 +114,64 @@ def run(model, rundict, priordict, polysettings=None):
         their respective priors.
         """
 
+        # Get periods for sorting
+        periods = hypercube[planet_idxs]
+
+        # Check if they are already sorted and skip ordering
+        idxs = np.arange(len(hypercube), dtype=np.int)
+        if not np.all(periods[:-1] <= periods[1:]):
+            # Sort periods
+            sorted_periods_args = np.argsort(periods)
+            # Construct target index list
+            for i, par in enumerate(parnames):
+                if 'planet' not in par:
+                    idxs[i] = i
+                else:
+                    planet = int(par[6])
+                    new_pos = list(sorted_periods_args).index(planet-1)
+                    internal_pos = planets[planet-1].index(i)
+                    target = planets[new_pos][internal_pos]
+                    idxs[i] = target
+
+        # Claculate physical parameters with ppf from prior
         theta = np.ones_like(hypercube)
-        idxs = []
-        periods = []
-        names = []
-        for i, x in enumerate(hypercube):
+        for i, x in enumerate(idxs):
             param = parnames[i]
-            # Keep track of planet periods to sort them after
-            if ('planet' in param) and ('period' in param):
-                idxs.append(i)
-                periods.append(x)
-                names.append(param)
-            theta[i] = priordict[param].ppf(x)
-        
-        # Sort periods
-        sorted_periods = sorted(zip(periods, names))
+            theta[x] = priordict[param].ppf(hypercube[i])
 
-        # Calculate priors on the sorted periods
-        for idx, period in zip(idxs, sorted_periods):
-            theta[idx] = priordict[period[1]].ppf(period[0])
-        return theta    
+        # # OLD SORTING. ONLY SORTS PERIOD
+        # theta = np.ones_like(hypercube)
+        # idxs = []
+        # periods = []
+        # names = []
+        # for i, x in enumerate(hypercube):
+        #     param = parnames[i]
+        #     # Keep track of planet periods to sort them after
+        #     if ('planet' in param) and ('period' in param):
+        #         idxs.append(i)
+        #         periods.append(x)
+        #         names.append(param)
+        #     theta[i] = priordict[param].ppf(x)
 
-    
+        # # Sort periods
+        # sorted_periods = sorted(zip(periods, names))
+
+        # # Calculate priors on the sorted periods
+        # for idx, period in zip(idxs, sorted_periods):
+        #     theta[idx] = priordict[period[1]].ppf(period[0])
+
+        return theta
+
     # LogLikelihood
+
     def loglike(x):
         """
         Calculates de logarithm of the Likelihood given the parameter vector x. 
         """
 
-        loglike.nloglike += 1 # Add one to the likelihood calculations counter
+        loglike.nloglike += 1  # Add one to the likelihood calculations counter
         return (model.log_likelihood(x), [])
-    loglike.nloglike = 0 # Likelihood calculations counter
+    loglike.nloglike = 0  # Likelihood calculations counter
 
     # Prepare run
     nderived = 0
@@ -132,9 +184,9 @@ def run(model, rundict, priordict, polysettings=None):
     if size > 1:
         isodate = comm.bcast(isodate, root=0)
 
-
     # Create PolyChordSettings object for this run
-    settings = set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames)
+    settings = set_polysettings(
+        rundict, polysettings, ndim, nderived, isodate, parnames)
 
     # Initialise clocks
     ti = time.process_time()
@@ -166,7 +218,8 @@ def run(model, rundict, priordict, polysettings=None):
         del output.samples['loglike']
         del output.samples['weight']
         old_cols = output.samples.columns.values.tolist()
-        output.samples.rename(columns=dict(zip(old_cols, parnames)), inplace=True)
+        output.samples.rename(columns=dict(
+            zip(old_cols, parnames)), inplace=True)
 
         # Assign additional parameters to output
         output.runtime = datetime.timedelta(seconds=tf-ti)
@@ -184,7 +237,7 @@ def run(model, rundict, priordict, polysettings=None):
         # Add additional information if provided
         if 'prior_names' in rundict_keys:
             output.priors = rundict['prior_names']
-        
+
         if 'star_params' in rundict_keys:
             output.starparams = rundict['star_params']
 
@@ -201,14 +254,14 @@ def run(model, rundict, priordict, polysettings=None):
 
         # Copy post processing script to this run's folder
         parent = Path(__file__).parent.absolute()
-        shutil.copy(os.path.join(parent,'post_processing.py'), base_dir_parent)
+        shutil.copy(os.path.join(
+            parent, 'post_processing.py'), base_dir_parent)
 
         # Copy model file
         shutil.copy(model.model_path, base_dir_parent)
 
         # Run post processing script
         postprocess(base_dir_parent)
-
 
     return output
 
@@ -249,6 +302,7 @@ def dump2pickle_poly(output, filename, savedir=None):
         pickle.dump(output, f)
 
     return
+
 
 def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     """ 
@@ -298,40 +352,47 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
             setting = 'nlive'
             if setting in polysettings.keys():
                 if type(polysettings[setting]) is not int:
-                    raise TypeError(f'{setting} has to be an integer (got type {type(polysettings[setting])})')
+                    raise TypeError(
+                        f'{setting} has to be an integer (got type {type(polysettings[setting])})')
 
             setting = 'num_repeats'
             if setting in polysettings.keys():
                 if type(polysettings[setting]) is not int:
-                    raise TypeError(f'{setting} has to be an integer (got type {type(polysettings[setting])})')
+                    raise TypeError(
+                        f'{setting} has to be an integer (got type {type(polysettings[setting])})')
 
             setting = 'do_clustering'
             if setting in polysettings.keys():
                 if type(polysettings[setting]) is not bool:
-                    raise TypeError(f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
+                    raise TypeError(
+                        f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
 
             setting = 'read_resume'
             if setting in polysettings.keys():
                 if type(polysettings[setting]) is not bool:
-                    raise TypeError(f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
+                    raise TypeError(
+                        f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
 
             setting = 'precision_criterion'
             if setting in polysettings.keys():
                 if type(polysettings[setting]) is not float:
-                    raise TypeError(f'{setting} has to be a float (got type {type(polysettings[setting])})')
+                    raise TypeError(
+                        f'{setting} has to be a float (got type {type(polysettings[setting])})')
 
             default_settings.update(polysettings)
 
     # Define fileroot name (identifies this specific run)
-    rundict['target'] = rundict['target'].replace(' ', '') # Remove any whitespace
-    rundict['runid'] = rundict['runid'].replace(' ', '') # Remove any whitespace
+    rundict['target'] = rundict['target'].replace(
+        ' ', '')  # Remove any whitespace
+    rundict['runid'] = rundict['runid'].replace(
+        ' ', '')  # Remove any whitespace
     file_root = rundict['target']+'_'+rundict['runid']
-    
+
     # Add comment if it exists and is not empty
     if 'comment' in rundict_keys:
         if rundict['comment'] != '':
             file_root += '-' + rundict['comment']
-    
+
     # Add number of planets if it exists
     if 'nplanets' in rundict_keys:
         if rundict['nplanets'] is not None:
@@ -351,7 +412,7 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     file_root += '_ncores{}'.format(size)
     file_root += '_polychord'
     file_root += '_'+isodate
-    
+
     # Base directory
     # Check if a save directory was provided
     if 'save_dir' in rundict_keys:
@@ -368,7 +429,8 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     settings.nlive = default_settings['nlive']
     settings.num_repeats = default_settings['num_repeats']
     settings.do_clustering = default_settings['do_clustering']
-    settings.read_resume = default_settings['read_resume'] # TODO Think about how to implement resumes
+    # TODO Think about how to implement resumes
+    settings.read_resume = default_settings['read_resume']
     settings.feedback = default_settings['feedback']
     settings.precision_criterion = default_settings['precision_criterion']
     settings.file_root = default_settings['file_root']
