@@ -1,10 +1,10 @@
-import pickle
-import pandas as pd
-import numpy as np
-import os
-import sys
-import importlib
 from pathlib import Path
+import importlib
+import sys
+import os
+import numpy as np
+import pandas as pd
+import pickle
 
 import matplotlib
 # If running in server the 'Agg' display enviornment has to be used
@@ -24,7 +24,8 @@ def postprocess(path):
     # Load pickle file with polychord output
     print('Loading pickle file with PolyChord output...')
     run_label = str(path).split('/')[-1]
-    output = pickle.load(open(os.path.join(path, run_label+'.dat'), 'rb'), encoding='latin1')
+    output = pickle.load(
+        open(os.path.join(path, run_label+'.dat'), 'rb'), encoding='latin1')
     print(f'Run: {output.file_root}', file=f)
 
     rundict_keys = list(output.rundict.keys())
@@ -53,7 +54,7 @@ def postprocess(path):
     print(f'Evidence (logZ) = {output.logZ} +/- {output.logZerr}', file=f)
 
     # Change direcory of posterior
-    output.base_dir = os.path.join(path,'polychains')
+    output.base_dir = os.path.join(path, 'polychains')
 
     # Samples of posterior
     samples = output.samples
@@ -85,15 +86,20 @@ def postprocess(path):
                 from uncertainties import ufloat, umath
                 # Minimum mass calculation
                 K = ufloat(medians[f'planet{i+1}_k1'], stds[f'planet{i+1}_k1'])
-                period = ufloat(medians[f'planet{i+1}_period'], stds[f'planet{i+1}_period'])
-                if f'planet{i+1}_ecc' in medians.columns.to_list():
-                    ecc = ufloat(medians[f'planet{i+1}_ecc'], stds[f'planet{i+1}_ecc'])
+                period = ufloat(
+                    medians[f'planet{i+1}_period'], stds[f'planet{i+1}_period'])
+                if f'planet{i+1}_ecc' in paramnames:
+                    ecc = ufloat(
+                        medians[f'planet{i+1}_ecc'], stds[f'planet{i+1}_ecc'])
                 else:
-                    ecc = medians[f'planet{i+1}_secos']**2 + medians[f'planet{i+1}_sesin']**2
-                mstar = ufloat(output.starparams['star_mass'][0], output.starparams['star_mass'][1])
+                    ecc = medians[f'planet{i+1}_secos']**2 + \
+                        medians[f'planet{i+1}_sesin']**2
+                mstar = ufloat(
+                    output.starparams['star_mass'][0], output.starparams['star_mass'][1])
                 print(f"\nPlanet {i+1}", file=f)
                 print(f"Period = {period}", file=f)
-                print(f"m*sin(i) = {min_mass(K, period, ecc, mstar)} Mearth", file=f)
+                print(
+                    f"m*sin(i) = {min_mass(K, period, ecc, mstar)} Mearth", file=f)
                 print(f"a = {semi_mayor_axis(period, mstar)} AU", file=f)
             except (ImportError, KeyError):
                 print("No planet parameters could be extracted because of missing key")
@@ -101,8 +107,6 @@ def postprocess(path):
     # Done with printing, close file
     f.close()
     # --------------- POSTERIORS -----------------------------
-
-
 
     # Plotting posteriors for each parameter category
     print('Plotting posterior distributions...')
@@ -116,7 +120,6 @@ def postprocess(path):
         else:
             categories[category].append(parameter)
 
-
     # Create subplots for each parameter category
     for cat in categories.keys():
         print(f"\tPlotting posterior of category '{cat}'")
@@ -128,8 +131,8 @@ def postprocess(path):
             print(f"\t\tPlotting parameter '{par}'")
             posterior = samples[f'{cat}_{par}'].values
             median = medians[f'{cat}_{par}']
-            ax[i].hist(posterior, label='Posterior', bins='auto', 
-                                histtype='step', density=True)
+            ax[i].hist(posterior, label='Posterior', bins='auto',
+                       histtype='step', density=True)
 
             ax[i].set_title(f"{par.capitalize()}\nMedian = {median:5.3f}")
             ax[i].set_xlabel(par)
@@ -140,12 +143,12 @@ def postprocess(path):
         fig.tight_layout()
         if 'planet' in cat:
             filename = f"{cat}_{medians[f'{cat}_period']:.2f}_posteriors.png"
-        else: 
+        else:
             filename = f'{cat}_posteriors.png'
         fig.savefig(os.path.join(path, filename), dpi=300)
-        
-    # In addition to the category posterior plots, one more plot with only the 
-    # periods of the planets    
+
+    # In addition to the category posterior plots, one more plot with only the
+    # periods of the planets
 
     try:
         if (nplanets != None) and (nplanets != 0):
@@ -160,8 +163,8 @@ def postprocess(path):
                 median = medians[f'planet{i+1}_period']
 
                 # Histogram
-                ax[i].hist(period_post, label='Posterior', bins='auto', 
-                                        histtype='step', density=True)
+                ax[i].hist(period_post, label='Posterior', bins='auto',
+                           histtype='step', density=True)
 
                 ax[i].set_title(f"Median = {median:5.3f} days")
                 ax[i].set_xlabel('Period [d]')
@@ -174,7 +177,6 @@ def postprocess(path):
     except KeyError:
         print("Couldn't plot posterior for planets because of missing keys.")
     # -------------------------------------------------------
-
 
     # ---------- PHASE FOLDING -----------------
     # Create phase fold plots for all planets in the model.
@@ -192,7 +194,8 @@ def postprocess(path):
             pardict.update(model.fixedpardict)
 
             # Initialize figure
-            fig2, ax2 = plt.subplots(1, nplanets, figsize=(6*nplanets, 5), sharey=True)
+            fig2, ax2 = plt.subplots(
+                1, nplanets, figsize=(6*nplanets, 5), sharey=True)
             ax2 = np.atleast_1d(ax2)
 
             # Color map to be used for the different instruments
@@ -208,47 +211,56 @@ def postprocess(path):
             for n in range(1, nplanets+1):
                 period = pardict[f'planet{n}_period']
                 idx = periods_pos[n-1]  # Get index in subplot for each planet
-                t_ref = 0 # Initialization of reference time for the phase fold
+                t_ref = 0  # Initialization of reference time for the phase fold
                 full_prediction = np.zeros_like(model.data['rjd'].values)
                 full_phases = np.zeros_like(model.data['rjd'].values)
 
                 # Go through each instrument and plot
                 # This is done so each instrument has a different color in the plot
                 for i, instrument in enumerate(model.insts):
-                    # Create arrays with time and data for this instrument 
-                    t = model.data['rjd'].values[np.where(model.data['inst_id']==i)]
-                    y = model.data['vrad'].values[np.where(model.data['inst_id']==i)]
+                    # Create arrays with time and data for this instrument
+                    t = model.data['rjd'].values[np.where(
+                        model.data['inst_id'] == i)]
+                    y = model.data['vrad'].values[np.where(
+                        model.data['inst_id'] == i)]
 
                     # Make RV prediction exluding the specified planet
                     # TODO check closly how to also substract all activity parameters
-                    prediction = model.predict_kep_rv(pardict, t, exclude_planet=n)
-                    corrected_data = y - prediction - pardict[f'{instrument}_offset']
+                    prediction = model.kep_rv(
+                        pardict, t, exclude_planet=n)
+                    corrected_data = y - prediction - \
+                        pardict[f'{instrument}_offset']
                     planet_prediction = model.modelk(pardict, t, planet=n)
-                    full_prediction[np.where(model.data['inst_id']==i)] = planet_prediction
+                    full_prediction[np.where(
+                        model.data['inst_id'] == i)] = planet_prediction
 
                     # Calculate error with jitter
-                    yerr = model.data['svrad'].values[np.where(model.data['inst_id']==i)]
-                    errs = np.sqrt(yerr**2 + pardict[f'{instrument}_jitter']**2)
+                    yerr = model.data['svrad'].values[np.where(
+                        model.data['inst_id'] == i)]
+                    errs = np.sqrt(
+                        yerr**2 + pardict[f'{instrument}_jitter']**2)
 
                     # Calculate reference point with maximum
                     if t_ref == 0:
                         t_ref = t[np.argmax(planet_prediction)]
-                    phases = (((t - t_ref) / period)%1. - 0.5) * period # Fold time array
+                    phases = (((t - t_ref) / period) %
+                              1. - 0.5) * period  # Fold time array
                     # Append to full list of phases
-                    full_phases[np.where(model.data['inst_id']==i)] = phases
+                    full_phases[np.where(model.data['inst_id'] == i)] = phases
 
                     # Plot data and prediction in corresponding subplot
-                    ax2[idx].errorbar(phases, corrected_data, yerr=errs, 
-                                                    fmt='.', label=f'{instrument}', 
-                                                    color=colors[i], zorder=i,
-                                                    elinewidth=1, barsabove=True)
+                    ax2[idx].errorbar(phases, corrected_data, yerr=errs,
+                                      fmt='.', label=f'{instrument}',
+                                      color=colors[i], zorder=i,
+                                      elinewidth=1, barsabove=True)
 
                 # Sort full arrays to plot prediction on top
                 sortIndi = np.argsort(full_phases)
                 full_phases = full_phases[sortIndi]
                 full_prediction = full_prediction[sortIndi]
-                
-                ax2[idx].plot(full_phases, full_prediction, color='k', zorder=i+1)
+
+                ax2[idx].plot(full_phases, full_prediction,
+                              color='k', zorder=i+1)
                 ax2[idx].set_title(f"Planet {n}; Period: {period:.4f} days")
                 ax2[idx].set_xlabel("Orbital phase [days]")
                 if idx == 0:
@@ -280,6 +292,7 @@ def load_model(output, parnames):
 
     return model
 
+
 def int_hist(hist, bin_edges):
     res = 0
     lim95 = 0
@@ -308,6 +321,8 @@ def min_mass(K, period, ecc, mstar):
     ecc: eccentricity of planet
     mstar [Msun]: Mass of star in Sun masses
     """
+
+    from uncertainties import ufloat, umath
     # Unit conversions
     period *= 86400  # days to seconds
     mstar *= 1.9891e30  # Sun masses to kg

@@ -47,7 +47,7 @@ def test_polysettings():
     assert settings.nlive == 175
     assert settings.num_repeats == 35
     assert settings.do_clustering == True
-    assert settings.precision_criterion == 0.01
+    assert settings.precision_criterion == 0.001
 
     # Test if invalid data types are handled correctly
     polysettings = {'nlive': 43.7}
@@ -156,16 +156,21 @@ def test_51Peg_k1_d0():
     model, rundict, priordict = poly_setup('config_51Peg_example.py', nplanets=1)
 
     # Settings for PolyChord
-    polysettings = {'nlive': 10}
+    polysettings = {'nlive': 5}
 
     output = polychord.run(model, rundict, priordict, polysettings)
 
+    clean_runs()
     # TODO Think what can be tested reliably
     # For now it only checks that it runs succesfully
     assert output.rundict['nplanets'] == 1
-    assert output.starparams['star_mass'] == 1.11
+    assert output.starparams['star_mass'][0] == 1.11
+    # Check that postprocessing created the files
+    assert os.path.isfile(os.path.join(output.base_dir, '../post_processing.py'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../results.txt'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../model_51Peg_example.py'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../'+output.file_root+'.dat'))
 
-    clean_runs()
     return
 
 # @pytest.mark.skip(reason="Too slow, coment out this mark to test")
@@ -175,7 +180,7 @@ def test_51Peg_k1_d1():
     model, rundict, priordict = poly_setup('config_51Peg_drift.py', nplanets=1)
 
     # Settings for PolyChord
-    polysettings = {'nlive': 50}
+    polysettings = {'nlive': 10}
     # polysettings = None
 
     output = polychord.run(model, rundict, priordict, polysettings)
@@ -183,7 +188,12 @@ def test_51Peg_k1_d1():
     # TODO Think what can be tested reliably
     # For now it only checks that it runs succesfully
     assert output.rundict['nplanets'] == 1
-    assert output.starparams['star_mass'] == 1.11
+    assert output.starparams['star_mass'][0] == 1.11
+    # Check that postprocessing created the files
+    assert os.path.isfile(os.path.join(output.base_dir, '../post_processing.py'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../results.txt'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../model_51Peg_example.py'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../'+output.file_root+'.dat'))
 
     clean_runs()
     return

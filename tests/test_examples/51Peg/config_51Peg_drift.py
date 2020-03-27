@@ -13,7 +13,7 @@ rundict = {
     'star_params': 
     {
         #'star_rot': star_rot, # Rotation period of target in days
-        'star_mass': 1.11, # Mass of target in solar masses
+        'star_mass': (1.11, 0.02), # Mass of target in solar masses
         # 'star_radius': star_radius # Radius of target in solar radii
     },
     'save_dir': os.path.join(Path(__file__).parent.parent.parent.absolute(), 'chains')
@@ -28,8 +28,12 @@ datadict = {
     'hamilton':
     {
         'datafile':  os.path.join(Path(__file__).parent.absolute(), '51Peg.rv'),
-        'sep': '\t',
-        'instrument': 'hamilton'
+        'instrument': 'hamilton',
+        # Paramteres for the pandas read_csv function to read the datafile
+        'kwargs': {
+                   'sep': '\t',
+                   'skiprows': (1,),
+                  }
     }
 }
 
@@ -50,7 +54,6 @@ hamiltondict = {'offset': [0., 1, ['Uniform', -10, 10]],
 
 driftdict = {'lin': [0., 1, ['Uniform', -100, 100]],
              'tref': [51050, 0.],
-             'reloco': [345345, 0]
              }
 
 input_dict = {'planet1': planetdict1,

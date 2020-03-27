@@ -81,7 +81,6 @@ def run(model, rundict, priordict, polysettings=None):
     # Create list of parameter names
     parnames = model.parnames
     rundict_keys = list(rundict.keys())
-    print(hasattr(model, "log_likelihood"))
 
     # Count "real" number of planets if not provided by rundict or model
     nplanets = 0

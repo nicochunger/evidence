@@ -39,7 +39,8 @@ def read_config(configfile, nplanets=None):
         # Check that nplanets doesn't exceed the number of planets dicts
         # EXCEPT if there is only 1
         if num_planet_dicts > 1 and nplanets > num_planet_dicts:
-            raise ValueError("Not enough planet dictionaries for the requested number of planets.")
+            raise ValueError(
+                "Not enough planet dictionaries for the requested number of planets.")
 
         # Dynamically add or remove planet dicts for the requested amount of planets
         if num_planet_dicts == 1:
@@ -64,8 +65,6 @@ def read_config(configfile, nplanets=None):
 
     # Read data from file(s)
     read_data(c.datadict)
-
-    # TODO Add option to add polysettings to configfile
 
     # Fixed parameters
     fixedpardict = get_fixedparvalues(inputdict)
@@ -95,26 +94,16 @@ def get_fixedparvalues(inputdict):
 
 
 def read_data(datadict):
+    """ 
+    Function that reads all the datafiles and loads them into pandas DataFrames. 
+    """
+
     for inst in datadict:
-        # Try to get custom parameters
-        try:
-            sep = datadict[inst]['sep']
-        except KeyError:
-            sep = '\t'
+        # Dictionary with paramteres to read datafile
+        kwargs = datadict[inst]['kwargs']
 
-        try:
-            skiprows = datadict[inst]['skiprows']
-        except KeyError:
-            skiprows = [1, ]
-
-        try:
-            names = datadict[inst]['names']
-        except KeyError:
-            names = None
-
-        # Read rdb file
-        data = pd.read_csv(datadict[inst]['datafile'], sep=sep,
-                           comment='#', skiprows=skiprows, names=names)
+        # Read datafile file
+        data = pd.read_csv(datadict[inst]['datafile'], **kwargs)
         datadict[inst]['data'] = data
     return
 
@@ -124,7 +113,7 @@ def read_priors(inputdict, rundict):
     their respective priors. """
 
     priors = {}
-    
+
     # Iteration over all parameter objects
     for objkey in inputdict.keys():
 
@@ -146,7 +135,7 @@ def read_priors(inputdict, rundict):
             # Round parameters so that 2*pi is not that long
             for i in range(len(pars)):
                 pars[i] = round(pars[i], 4)
-            
+
             priors[objkey+'_'+parkey] = f'{priortype}: {pars}'
 
     rundict.update({'prior_names': priors})

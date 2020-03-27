@@ -86,7 +86,7 @@ class RVModel(BaseModel):
     you create a model class that inherits from this base model class. 
     So if a custom model is wanted you only have to rewrite the log_likelihodd() 
     method with your custom model. For this you can obviously use all the built 
-    in methods like modelk, predict_kep_rv, drift and linear_parameter.
+    in methods like modelk, kep_rv, drift and linear_parameter.
     """
 
     def __init__(self, fixedpardict, datadict, parnames):
@@ -125,7 +125,7 @@ class RVModel(BaseModel):
 
         return
 
-    def predict_kep_rv(self, pardict, time, exclude_planet=None):
+    def kep_rv(self, pardict, time, exclude_planet=None):
         """
         Give rv prediction for all planets at time t. Has the option to exlude the
         contribution of one of the planets. This option is used for phase folds.
@@ -166,6 +166,8 @@ class RVModel(BaseModel):
 
         return rv_prediction
 
+    # def predict_rv(self, time, pardict, )
+
     def log_likelihood(self, x):
         """
         Compute log likelihood for parameter vector x.
@@ -202,7 +204,7 @@ class RVModel(BaseModel):
                 self.data['inst_id'] == i)]**2 + pardict[f'{instrument}_jitter']**2
 
         # RV prediction
-        rvm = self.predict_kep_rv(pardict, t)
+        rvm = self.kep_rv(pardict, t)
 
         # Add drift (if there is one)
         rvm += self.drift(pardict, t)
@@ -267,7 +269,7 @@ class RVModel(BaseModel):
 
         return drift
 
-    def linear_parameter(self, time, indicator, pardict, par, kernel='gaussian', timescale=0.5):
+    def linear_parameter(self, time, indicator, pardict, par, kernel=None, timescale=0.5):
         """
         RV prediction for a linear dependece with some activity indicator. With
         option to smooth using a gaussian, box or epanechnikov kernel.
@@ -283,12 +285,12 @@ class RVModel(BaseModel):
             Dictionary with all the parameters and their values
         par : str
             Name of the parameters that is the scale for the linear parameter
-        kernel : str, optional
+        kernel : str, optional (default: None)
             Kernel that will be used to smooth the series. This can be None if 
-            no smoothing should be applied. Or the smoothing options are 'gaussian',
-            'box', and 'epanechnikov'.
-        timescale : float
-            Time scale for the smoothing.
+            no smoothing should be applied. The smoothing options are: 'gaussian',
+            'box' and 'epanechnikov'.
+        timescale : float, optional (default: 0.5)
+            Time scale for the smoothing in years.
 
         Returns
         -------
@@ -298,23 +300,27 @@ class RVModel(BaseModel):
 
         assert len(time) == len(indicator), "time and indicator have to have the \
                                              same length."
-        # Smooth time series of chosen indicator
-        renorm_time = time/(365.25 * timescale)
-        series_smoothed = np.empty_like(indicator)
-        for k in range(renorm_time.size):
-            delta_t = renorm_time - renorm_time[k]
-            if kernel == 'gaussian':
-                w = np.exp(-0.5 * delta_t**2)
-            elif kernel == 'box':
-                w = np.abs(delta_t) <= 1.0
-            elif kernel == 'epanechnikov':
-                w = (np.abs(delta_t) <= 1.0)*(1.0-delta_t**2)
-            else:
-                raise ValueError("Chosen kernel is not a valid option.")
+        if kernel == None:
+            # Don't smooth if no smoothing kernel was indicated
+            series_smoothed = indicator
+        else:
+            # Smooth time series of chosen indicator
+            renorm_time = time/(365.25 * timescale)
+            series_smoothed = np.empty_like(indicator)
+            for k in range(renorm_time.size):
+                delta_t = renorm_time - renorm_time[k]
+                if kernel == 'gaussian':
+                    w = np.exp(-0.5 * delta_t**2)
+                elif kernel == 'box':
+                    w = np.abs(delta_t) <= 1.0
+                elif kernel == 'epanechnikov':
+                    w = (np.abs(delta_t) <= 1.0)*(1.0-delta_t**2)
+                else:
+                    raise ValueError("Chosen kernel is not a valid option.")
 
-            # Normalize
-            w /= np.sum(w)
-            series_smoothed[k] = np.sum(w*indicator)
+                # Normalize
+                w /= np.sum(w)
+                series_smoothed[k] = np.sum(w*indicator)
 
         # Normalize smoothed series to the interval [-1, 1]
         maxval = np.max(series_smoothed)
