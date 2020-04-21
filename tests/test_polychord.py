@@ -161,7 +161,6 @@ def test_51Peg_k1_d0():
     output = polychord.run(model, rundict, priordict, polysettings)
 
     clean_runs()
-    # TODO Think what can be tested reliably
     # For now it only checks that it runs succesfully
     assert output.rundict['nplanets'] == 1
     assert output.starparams['star_mass'][0] == 1.11
@@ -185,7 +184,6 @@ def test_51Peg_k1_d1():
 
     output = polychord.run(model, rundict, priordict, polysettings)
 
-    # TODO Think what can be tested reliably
     # For now it only checks that it runs succesfully
     assert output.rundict['nplanets'] == 1
     assert output.starparams['star_mass'][0] == 1.11

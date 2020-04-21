@@ -64,8 +64,9 @@ class BaseModel(object):
         residuals : ndarray
             Residuals between the data and the model
         noise : ndarray
-            Array for the noises of each data point. This should include all
-            instrumental errors as well as any additional jitter noise.
+            Array for the variance of each data point (var = sigma**2). This 
+            should include all instrumental errors as well as any additional 
+            jitter noise.
 
         Returns
         -------
@@ -269,7 +270,7 @@ class RVModel(BaseModel):
 
         return drift
 
-    def linear_parameter(self, time, indicator, pardict, par, kernel=None, timescale=0.5):
+    def linear_parameter(self, time, indicator, par, kernel=None, timescale=0.5):
         """
         RV prediction for a linear dependece with some activity indicator. With
         option to smooth using a gaussian, box or epanechnikov kernel.
@@ -281,10 +282,8 @@ class RVModel(BaseModel):
         indicator : ndarray
             Time series for the indicator that will be used as a linear dependence.
             Has to have the same length as time
-        pardict : dict
-            Dictionary with all the parameters and their values
-        par : str
-            Name of the parameters that is the scale for the linear parameter
+        par : float
+            Value of the parameter that is the scale for the linear parameter
         kernel : str, optional (default: None)
             Kernel that will be used to smooth the series. This can be None if 
             no smoothing should be applied. The smoothing options are: 'gaussian',
@@ -328,7 +327,7 @@ class RVModel(BaseModel):
         norm_smooth = 2.0*(series_smoothed-minval)/(maxval-minval) - 1.0
 
         # Calculate predicted RV
-        return pardict[par] * norm_smooth
+        return par * norm_smooth
 
     def modelk(self, pardict, time, planet):
         """

@@ -74,8 +74,9 @@ def run(model, rundict, priordict, polysettings=None):
     Returns
     -------
     output : PolyChordOutput object
-        Object with the PolyChord output. Several attributes are added before
-        returning. These are used for the post processing script.
+        Object with the PolyChord output. 
+        Several attributes are added before returning. These are used for the 
+        post processing script.
     """
 
     # Create list of parameter names
