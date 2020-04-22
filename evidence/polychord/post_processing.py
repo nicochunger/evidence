@@ -41,13 +41,14 @@ def postprocess(path):
     print(f'Repeats in slice sampling: {output.nrepeats}', file=f)
     print(f'Cores used: {output.ncores}', file=f)
     print(f'Run time = {output.runtime}', file=f)
-    print(f'Likelihood calculations = {output.nloglike}', file=f)
+    print(f'Likelihood calculations = {output.nlike}', file=f)
 
     nplanets = None
     if 'nplanets' in rundict_keys:
         nplanets = output.rundict["nplanets"]
         if nplanets != None:
             print(f'\nNumber of planets: {nplanets}', file=f)
+    print(f'Number of free parameters: {output.ndim}', file=f)
 
     # Run results
     print('\nResults:', file=f)

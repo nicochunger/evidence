@@ -169,9 +169,7 @@ def run(model, rundict, priordict, polysettings=None):
         Calculates de logarithm of the Likelihood given the parameter vector x. 
         """
 
-        loglike.nloglike += 1  # Add one to the likelihood calculations counter
         return (model.log_likelihood(x), [])
-    loglike.nloglike = 0  # Likelihood calculations counter
 
     # Prepare run
     nderived = 0
@@ -203,12 +201,6 @@ def run(model, rundict, priordict, polysettings=None):
         ti = comm.reduce(ti, op=MPI.MIN, root=0)
         tf = comm.reduce(tf, op=MPI.MAX, root=0)
 
-        # Gather all the number of likelihood calculations and sum to get total
-        nlog = comm.reduce(loglike.nloglike, op=MPI.SUM, root=0)
-    else:
-        # If only one core was used just use the nloglike attribute
-        nlog = loglike.nloglike
-
     # Save results
     if rank == 0:
         # Cleanup of parameter names
@@ -232,7 +224,7 @@ def run(model, rundict, priordict, polysettings=None):
         output.isodate = isodate
         output.ncores = size
         output.parnames = parnames
-        output.nloglike = nlog
+        output.ndim = ndim
 
         # Add additional information if provided
         if 'prior_names' in rundict_keys:
