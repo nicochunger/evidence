@@ -114,9 +114,15 @@ class RVModel(BaseModel):
         # Now add things specific to RV models
         # Count number of planets in model
         self.nplanets = 0
+        self.drift_in_model = False
         for par in self.parnames:
             if 'k1' in par:
                 self.nplanets += 1
+
+            # Check if there is a drift in the model
+            # Search for drift parameters in the parameters
+            if 'drift' in par:
+                self.drift_in_model = True
 
         # Prepare true anomaly C function
         self.lib = cdll.LoadLibrary(os.path.join(
@@ -208,7 +214,8 @@ class RVModel(BaseModel):
         rvm = self.kep_rv(pardict, t)
 
         # Add drift (if there is one)
-        rvm += self.drift(pardict, t)
+        if self.drift_in_model:
+            rvm += self.drift(pardict, t)
 
         # Residual
         res = y - rvm
