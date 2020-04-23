@@ -4,6 +4,18 @@ Evidence Package Changes Log
 
 --------------------------------------------------------------------------------
 
+Release 0.1.3: April 23, 2020
+
+  - Added Eccentricity values and semi amplitude to the printed results file.
+  - Total number of likelihood calculations are now taken directly from the 
+    PolyChord output instead of the custom counter.
+  - In RVModel the check for a drift in the model is done in the init. This
+    means that for models without drift in the default loglikelihood it only
+    checks once if there is a model or not instead of doing the whole drift with
+    a bunch of zeros.
+
+--------------------------------------------------------------------------------
+
 Release 0.1.2: March 27, 2020
 
   - Improved options for reading datafiles. In the datadict of the configfile
