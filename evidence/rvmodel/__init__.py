@@ -124,6 +124,10 @@ class RVModel(BaseModel):
             if 'drift' in par:
                 self.drift_in_model = True
 
+        self.time = self.data['rjd'].values.copy()
+        self.vrad = self.data['vrad'].values.copy()
+        self.svrad = self.data['svrad'].values.copy()
+
         # Prepare true anomaly C function
         self.lib = cdll.LoadLibrary(os.path.join(
             Path(__file__).parent.absolute(), 'trueanomaly.so'))
@@ -157,9 +161,6 @@ class RVModel(BaseModel):
         assert (type(exclude_planet) == type(None)) or (type(exclude_planet) == int), \
             f"exclude_planet has to be an {int}, got {type(exclude_planet)}."
 
-        # Add fixed parameters to pardict
-        pardict.update(self.fixedpardict)
-
         # Prepare array for planet-induced velocities
         rv_planet = np.zeros((self.nplanets, len(time)))
 
@@ -190,6 +191,7 @@ class RVModel(BaseModel):
             Value of the log likelihood for parameter vector x
         """
 
+        # Create pardict dictionary with current parameter values
         pardict = {}
         for i, par in enumerate(self.parnames):
             pardict[par] = x[i]
@@ -197,28 +199,25 @@ class RVModel(BaseModel):
         # Add fixed parameters to pardict
         pardict.update(self.fixedpardict)
 
-        # Get time, rv, and correct for global offsets
-        t = self.data['rjd'].values.copy()
-        y = self.data['vrad'].values.copy()
-        err = self.data['svrad'].values.copy()
-        noise = np.zeros_like(err)
+        # Correct for global offsets and add jitter to noise
+        noise = np.zeros_like(self.svrad)
+        rvm = np.zeros_like(self.vrad)
         for i, instrument in enumerate(self.insts):
             # Substract offsets
-            y[np.where(self.data['inst_id'] == i)
-              ] -= pardict[f'{instrument}_offset']
+            rvm[np.where(self.data['inst_id'] == i)] -= pardict[f'{instrument}_offset']
             # Add jitter to noise
-            noise[np.where(self.data['inst_id'] == i)] = err[np.where(
+            noise[np.where(self.data['inst_id'] == i)] = self.svrad[np.where(
                 self.data['inst_id'] == i)]**2 + pardict[f'{instrument}_jitter']**2
 
         # RV prediction
-        rvm = self.kep_rv(pardict, t)
+        rvm += self.kep_rv(pardict, self.time)
 
         # Add drift (if there is one)
         if self.drift_in_model:
-            rvm += self.drift(pardict, t)
+            rvm += self.drift(pardict, self.time)
 
         # Residual
-        res = y - rvm
+        res = self.vrad - rvm
 
         loglike = self.logL(res, noise)
 
@@ -277,7 +276,7 @@ class RVModel(BaseModel):
 
         return drift
 
-    def linear_parameter(self, time, indicator, par, kernel=None, timescale=0.5):
+    def linear_parameter(self, time, indicator, kernel=None, timescale=0.5):
         """
         RV prediction for a linear dependece with some activity indicator. With
         option to smooth using a gaussian, box or epanechnikov kernel.
@@ -289,8 +288,6 @@ class RVModel(BaseModel):
         indicator : ndarray
             Time series for the indicator that will be used as a linear dependence.
             Has to have the same length as time
-        par : float
-            Value of the parameter that is the scale for the linear parameter
         kernel : str, optional (default: None)
             Kernel that will be used to smooth the series. This can be None if 
             no smoothing should be applied. The smoothing options are: 'gaussian',
@@ -333,8 +330,8 @@ class RVModel(BaseModel):
         minval = np.min(series_smoothed)
         norm_smooth = 2.0*(series_smoothed-minval)/(maxval-minval) - 1.0
 
-        # Calculate predicted RV
-        return par * norm_smooth
+        # Return smoothed and normalized indicator series
+        return norm_smooth
 
     def modelk(self, pardict, time, planet):
         """
