@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import pickle
+from evidence.rvmodel import RVModel
 
 import matplotlib
 # If running in server the 'Agg' display enviornment has to be used
@@ -187,98 +188,104 @@ def postprocess(path):
     # -------------------------------------------------------
 
     # ---------- PHASE FOLDING -----------------
+    # TODO This entire section should be rewritten to something cleaner
     # Create phase fold plots for all planets in the model.
-    try:
-        if (nplanets != None) and (nplanets != 0):
-            print('Plotting phase folds for the planets...')
+    # Load model
+    model = load_model(output, paramnames)
+    # Check is model is an instance of RVModel
+    if isinstance(model, RVModel) and (nplanets != None) and (nplanets != 0):
 
-            # Load model
-            model = load_model(output, paramnames)
+        print('Plotting phase folds for the planets...')
+        # Construct pardict with the median of each parameter
+        pardict = {}
+        for key in medians.index:
+            pardict[key] = medians[key]
+        pardict.update(model.fixedpardict)
 
-            # Construct pardict with the median of each parameter
-            pardict = {}
-            for key in medians.index:
-                pardict[key] = medians[key]
-            pardict.update(model.fixedpardict)
+        # Initialize figure
+        fig2, ax2 = plt.subplots(
+            1, nplanets, figsize=(6*nplanets, 5), sharey=True)
+        ax2 = np.atleast_1d(ax2)
 
-            # Initialize figure
-            fig2, ax2 = plt.subplots(
-                1, nplanets, figsize=(6*nplanets, 5), sharey=True)
-            ax2 = np.atleast_1d(ax2)
+        # Color map to be used for the different instruments
+        colors = plt.get_cmap('Dark2').colors
 
-            # Color map to be used for the different instruments
-            colors = plt.get_cmap('Dark2').colors
+        # Get plot order of planets, from lowest to highest period
+        periods = np.zeros(nplanets)
+        for i in range(nplanets):
+            periods[i] = medians[f'planet{i+1}_period']
+        periods_pos = np.argsort(periods)
 
-            # Get plot order of planets, from lowest to highest period
-            periods = np.zeros(nplanets)
-            for i in range(nplanets):
-                periods[i] = medians[f'planet{i+1}_period']
-            periods_pos = np.argsort(periods)
+        # Loop through the planets
+        for n in range(1, nplanets+1):
+            period = pardict[f'planet{n}_period']
+            idx = periods_pos[n-1]  # Get index in subplot for each planet
+            t_ref = 0  # Initialization of reference time for the phase fold
+            full_prediction = np.zeros_like(model.time)
+            full_phases = np.zeros_like(model.time)
 
-            # Loop through the planets
-            for n in range(1, nplanets+1):
-                period = pardict[f'planet{n}_period']
-                idx = periods_pos[n-1]  # Get index in subplot for each planet
-                t_ref = 0  # Initialization of reference time for the phase fold
-                full_prediction = np.zeros_like(model.data['rjd'].values)
-                full_phases = np.zeros_like(model.data['rjd'].values)
+            # Go through each instrument and plot
+            # This is done so each instrument has a different color in the plot
+            for i, instrument in enumerate(model.insts):
 
-                # Go through each instrument and plot
-                # This is done so each instrument has a different color in the plot
-                for i, instrument in enumerate(model.insts):
-                    # Create arrays with time and data for this instrument
-                    t = model.data['rjd'].values[np.where(
-                        model.data['inst_id'] == i)]
-                    y = model.data['vrad'].values[np.where(
-                        model.data['inst_id'] == i)]
+                inst_idxs = np.where(model.data['inst_id'] == i)
+                # Create arrays with time and data for this instrument
+                t = model.time[inst_idxs]
+                y = model.vrad[inst_idxs]
 
-                    # Make RV prediction exluding the specified planet
-                    # TODO check closly how to also substract all activity parameters
-                    prediction = model.kep_rv(
-                        pardict, t, exclude_planet=n)
-                    corrected_data = y - prediction - \
-                        pardict[f'{instrument}_offset']
-                    planet_prediction = model.modelk(pardict, t, planet=n)
-                    full_prediction[np.where(
-                        model.data['inst_id'] == i)] = planet_prediction
+                # Make RV prediction exluding the specified planet
+                prediction = model.kep_rv(pardict, t, exclude_planet=n)
+                if model.drift_in_model:
+                    drift_prediction = model.drift(pardict, t)
+                else:
+                    drift_prediction = np.zeros_like(t)
+                corrected_data = y - prediction - drift_prediction - \
+                                 pardict[f'{instrument}_offset']
 
-                    # Calculate error with jitter
-                    yerr = model.data['svrad'].values[np.where(
-                        model.data['inst_id'] == i)]
-                    errs = np.sqrt(
-                        yerr**2 + pardict[f'{instrument}_jitter']**2)
+                corrected_data = y - pardict[f'{instrument}_offset']
+                corrected_data -= prediction
+                if model.drift_in_model:
+                    corrected_data -= model.drift(pardict, t)
+                if model.linpar_in_model:
+                    corrected_data -= model.norm_linpar
+                planet_prediction = model.modelk(pardict, t, planet=n)
+                full_prediction[inst_idxs] += planet_prediction
 
-                    # Calculate reference point with maximum
-                    if t_ref == 0:
-                        t_ref = t[np.argmax(planet_prediction)]
-                    phases = (((t - t_ref) / period) %
-                              1. - 0.5) * period  # Fold time array
-                    # Append to full list of phases
-                    full_phases[np.where(model.data['inst_id'] == i)] = phases
+                # Calculate error with jitter
+                yerr = model.svrad[inst_idxs]
+                errs = np.sqrt(yerr**2 + pardict[f'{instrument}_jitter']**2)
 
-                    # Plot data and prediction in corresponding subplot
-                    ax2[idx].errorbar(phases, corrected_data, yerr=errs,
-                                      fmt='.', label=f'{instrument}',
-                                      color=colors[i], zorder=i,
-                                      elinewidth=1, barsabove=True)
+                # Calculate reference point with maximum
+                if t_ref == 0:
+                    t_ref = t[np.argmax(planet_prediction)]
+                # Fold time array
+                phases = (((t - t_ref) / period) % 1. - 0.5) * period
+                # Append to full list of phases
+                full_phases[inst_idxs] = phases
 
-                # Sort full arrays to plot prediction on top
-                sortIndi = np.argsort(full_phases)
-                full_phases = full_phases[sortIndi]
-                full_prediction = full_prediction[sortIndi]
+                # Plot data and prediction in corresponding subplot
+                ax2[idx].errorbar(phases, corrected_data, yerr=errs,
+                                    fmt='.', label=f'{instrument}',
+                                    color=colors[i], zorder=i,
+                                    elinewidth=1, barsabove=True)
 
-                ax2[idx].plot(full_phases, full_prediction,
-                              color='k', zorder=i+1)
-                ax2[idx].set_title(f"Planet {n}; Period: {period:.4f} days")
-                ax2[idx].set_xlabel("Orbital phase [days]")
-                if idx == 0:
-                    ax2[idx].set_ylabel("Radial velocity [m/s]")
+            # Sort full arrays to plot prediction on top
+            sortIndi = np.argsort(full_phases)
+            full_phases = full_phases[sortIndi]
+            full_prediction = full_prediction[sortIndi]
 
-            ax2[nplanets-1].legend(loc='best')
-            fig2.tight_layout()
-            fig2.savefig(os.path.join(path, 'phase_folds.png'), dpi=300)
-    except (KeyError, TypeError):
-        print("Couldn't plot phase folds for the planets because of missing keys.")
+            ax2[idx].plot(full_phases, full_prediction,
+                            color='k', zorder=i+1)
+            ax2[idx].set_title(f"Planet {n}; Period: {period:.4f} days")
+            ax2[idx].set_xlabel("Orbital phase [days]")
+            if idx == 0:
+                ax2[idx].set_ylabel("Radial velocity [m/s]")
+
+        ax2[nplanets-1].legend(loc='best')
+        fig2.tight_layout()
+        fig2.savefig(os.path.join(path, 'phase_folds.png'), dpi=300)
+    else:
+        print("No planets to make phase folded plots.")
     # -------------------------------------------
 
     # plt.show()

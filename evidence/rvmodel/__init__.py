@@ -108,6 +108,7 @@ class RVModel(BaseModel):
         parnames : array_like
             List with the names of all free parameters
         """
+        
         # Call init from BaseModel class
         super().__init__(fixedpardict, datadict, parnames)
 
@@ -115,6 +116,7 @@ class RVModel(BaseModel):
         # Count number of planets in model
         self.nplanets = 0
         self.drift_in_model = False
+        self.linpar_in_model = False
         for par in self.parnames:
             if 'k1' in par:
                 self.nplanets += 1
@@ -123,6 +125,9 @@ class RVModel(BaseModel):
             # Search for drift parameters in the parameters
             if 'drift' in par:
                 self.drift_in_model = True
+
+            if 'linpar' in par:
+                self.linpar_in_model = True
 
         self.time = self.data['rjd'].values.copy()
         self.vrad = self.data['vrad'].values.copy()
@@ -210,7 +215,8 @@ class RVModel(BaseModel):
                 self.data['inst_id'] == i)]**2 + pardict[f'{instrument}_jitter']**2
 
         # RV prediction
-        rvm += self.kep_rv(pardict, self.time)
+        if self.nplanets > 0:
+            rvm += self.kep_rv(pardict, self.time)
 
         # Add drift (if there is one)
         if self.drift_in_model:
