@@ -108,7 +108,7 @@ class RVModel(BaseModel):
         parnames : array_like
             List with the names of all free parameters
         """
-        
+
         # Call init from BaseModel class
         super().__init__(fixedpardict, datadict, parnames)
 
@@ -208,11 +208,12 @@ class RVModel(BaseModel):
         noise = np.zeros_like(self.svrad)
         rvm = np.zeros_like(self.vrad)
         for i, instrument in enumerate(self.insts):
+
+            inst_idxs = np.where(self.data['inst_id'] == i)
             # Substract offsets
-            rvm[np.where(self.data['inst_id'] == i)] -= pardict[f'{instrument}_offset']
+            rvm[inst_idxs] += pardict[f'{instrument}_offset']
             # Add jitter to noise
-            noise[np.where(self.data['inst_id'] == i)] = self.svrad[np.where(
-                self.data['inst_id'] == i)]**2 + pardict[f'{instrument}_jitter']**2
+            noise[inst_idxs] = self.svrad[inst_idxs]**2 + pardict[f'{instrument}_jitter']**2
 
         # RV prediction
         if self.nplanets > 0:
