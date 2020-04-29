@@ -4,6 +4,7 @@ import sys
 import os
 import numpy as np
 import pandas as pd
+import scipy.stats as st
 import pickle
 from evidence.rvmodel import RVModel
 
@@ -65,11 +66,12 @@ def postprocess(path):
     # Get the medians and std for each parameter
     paramnames = samples.columns.values.tolist()
     medians = samples.median()
-    stds = samples.std()
+    stds = samples.apply(st.median_absolute_deviation, axis=0) * 1.4826
+    # stds = samples.std()
     # Initialize DataFrame
     params = pd.DataFrame(index=paramnames)
     params['Median'] = medians.values
-    params['Std'] = stds.values
+    params['MAD'] = stds
     try:
         # Add prior for each parameter
         params['Prior'] = pd.Series(output.priors)
@@ -247,7 +249,7 @@ def postprocess(path):
                 if model.drift_in_model:
                     corrected_data -= model.drift(pardict, t)
                 if model.linpar_in_model:
-                    corrected_data -= model.norm_linpar
+                    corrected_data -= model.norm_linpar[inst_idxs]
                 planet_prediction = model.modelk(pardict, t, planet=n)
                 full_prediction[inst_idxs] += planet_prediction
 
