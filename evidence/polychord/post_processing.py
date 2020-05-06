@@ -7,6 +7,7 @@ import pandas as pd
 import scipy.stats as st
 import pickle
 from evidence.rvmodel import RVModel
+# from corner import corner
 
 import matplotlib
 # If running in server the 'Agg' display enviornment has to be used
@@ -134,14 +135,29 @@ def postprocess(path):
     # Create subplots for each parameter category
     for cat in categories.keys():
         print(f"\tPlotting posterior of category '{cat}'")
-        par = categories[cat]
-        fig, ax = plt.subplots(1, len(par), figsize=(6*len(par), 5))
+        pars = categories[cat]
+        fig, ax = plt.subplots(1, len(pars), figsize=(6*len(pars), 5))
         ax = np.atleast_1d(ax)  # To support 1 planet models
 
-        for i, par in enumerate(par):
+        for i, par in enumerate(pars):
+            # Check if secos and sesin were used and covert to ecc and omega
+            if par == 'secos':
+                par = 'ecc'
+                secos = samples[f'{cat}_secos']**2
+                sesin = samples[f'{cat}_sesin']**2
+                posterior = secos**2 + sesin**2
+                median = np.median(posterior)
+            elif par == 'sesin':
+                par = 'omega'
+                secos = samples[f'{cat}_secos']**2
+                sesin = samples[f'{cat}_sesin']**2
+                posterior = np.arctan2(sesin, secos)
+                median = np.median(posterior)
+            else:
+                posterior = samples[f'{cat}_{par}'].values
+                median = medians[f'{cat}_{par}']
+
             print(f"\t\tPlotting parameter '{par}'")
-            posterior = samples[f'{cat}_{par}'].values
-            median = medians[f'{cat}_{par}']
             ax[i].hist(posterior, label='Posterior', bins='auto',
                        histtype='step', density=True)
 
@@ -189,7 +205,16 @@ def postprocess(path):
         print("Couldn't plot posterior for planets because of missing keys.")
     # -------------------------------------------------------
 
-    # ---------- PHASE FOLDING -----------------
+
+    # -------------------- CORNER PLOT -------------------------
+
+    # TODO ADD generation of corner plot
+    # corner_plot = corner()
+
+    # ----------------------------------------------------------
+
+
+    # ------------------- PHASE FOLDING ------------------------
     # TODO This entire section should be rewritten to something cleaner
     # Create phase fold plots for all planets in the model.
     # Load model
