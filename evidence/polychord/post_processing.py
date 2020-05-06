@@ -7,7 +7,7 @@ import pandas as pd
 import scipy.stats as st
 import pickle
 from evidence.rvmodel import RVModel
-# from corner import corner
+from corner import corner
 
 import matplotlib
 # If running in server the 'Agg' display enviornment has to be used
@@ -207,10 +207,9 @@ def postprocess(path):
 
 
     # -------------------- CORNER PLOT -------------------------
-
-    # TODO ADD generation of corner plot
-    # corner_plot = corner()
-
+    print('Plotting corner plot...')
+    corner_plot = corner(output.samples)
+    corner_plot.savefig(os.path.join(path, 'corner_plot.png'), dpi=300)
     # ----------------------------------------------------------
 
 
