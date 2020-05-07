@@ -1,7 +1,14 @@
+import os
+import matplotlib
+# If running in server the 'Agg' display enviornment has to be used
+home = os.getenv('HOME')
+if 'spectro' in home:
+    matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 from pathlib import Path
 import importlib
 import sys
-import os
 import numpy as np
 import pandas as pd
 import scipy.stats as st
@@ -9,12 +16,6 @@ import pickle
 from evidence.rvmodel import RVModel
 from corner import corner
 
-import matplotlib
-# If running in server the 'Agg' display enviornment has to be used
-home = os.getenv('HOME')
-if 'spectro' in home:
-    matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 def postprocess(path):
     """ Script that does a post processing of the polychord output. It analyses
