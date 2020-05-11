@@ -114,51 +114,31 @@ def run(model, rundict, priordict, polysettings=None):
         their respective priors.
         """
 
-        # Get periods for sorting
-        periods = hypercube[planet_idxs]
-
         # Check if they are already sorted and skip ordering
         idxs = np.arange(len(hypercube), dtype=np.int)
-        if not np.all(periods[:-1] <= periods[1:]):
-            # Sort periods
-            sorted_periods_args = np.argsort(periods)
-            # Construct target index list
-            for i, par in enumerate(parnames):
-                if 'planet' not in par:
-                    idxs[i] = i
-                else:
-                    planet = int(par[6])
-                    new_pos = list(sorted_periods_args).index(planet-1)
-                    internal_pos = planets[planet-1].index(i)
-                    target = planets[new_pos][internal_pos]
-                    idxs[i] = target
+        if 'order_planets' in rundict_keys:
+            if rundict['order_planets']: 
+                if not np.all(periods[:-1] <= periods[1:]):
+                    # Get periods for sorting
+                    periods = hypercube[planet_idxs]
+                    # Sort periods
+                    sorted_periods_args = np.argsort(periods)
+                    # Construct target index list
+                    for i, par in enumerate(parnames):
+                        if 'planet' not in par:
+                            idxs[i] = i
+                        else:
+                            planet = int(par[6])
+                            new_pos = list(sorted_periods_args).index(planet-1)
+                            internal_pos = planets[planet-1].index(i)
+                            target = planets[new_pos][internal_pos]
+                            idxs[i] = target
 
         # Claculate physical parameters with ppf from prior
         theta = np.ones_like(hypercube)
         for i, x in enumerate(idxs):
             param = parnames[i]
             theta[x] = priordict[param].ppf(hypercube[i])
-
-        # # OLD SORTING. ONLY SORTS PERIOD
-        # theta = np.ones_like(hypercube)
-        # idxs = []
-        # periods = []
-        # names = []
-        # for i, x in enumerate(hypercube):
-        #     param = parnames[i]
-        #     # Keep track of planet periods to sort them after
-        #     if ('planet' in param) and ('period' in param):
-        #         idxs.append(i)
-        #         periods.append(x)
-        #         names.append(param)
-        #     theta[i] = priordict[param].ppf(x)
-
-        # # Sort periods
-        # sorted_periods = sorted(zip(periods, names))
-
-        # # Calculate priors on the sorted periods
-        # for idx, period in zip(idxs, sorted_periods):
-        #     theta[idx] = priordict[period[1]].ppf(period[0])
 
         return theta
 
