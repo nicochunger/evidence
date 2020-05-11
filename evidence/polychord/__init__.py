@@ -53,12 +53,19 @@ def run(model, rundict, priordict, polysettings=None):
                     used
             comment (optional) : Optional comment for a third layer of identification
             prior_names (optional) : List with the names and ranges of the priors
-            nplanets (optional) : Number of planets in the RV model
+            nplanets (optional) : Number of planets in the RV model. If not 
+                                  provided, it will use the number of planets 
+                                  present in the configfile.
             star_params (optional) : Dictionary with the stars parameters like
                                      star_mass (mass of the star in solar masses),
                                      star_radius (radius of star in solar radii),
-                                     star_rot (roation period of star)
+                                     star_rot (roation period of star). These
+                                     can be be ufloats to include the uncertainty.
             savedir (optional) : Save directory for the output of PolyChord
+            order_planets (optionsl) : Boolean indicating if the planets should
+                                       be ordered by period. This is to avoid
+                                       periods jumping between the different 
+                                       planets. Default is False.
     priordict : dict
         Dictionary with the priors to all free parameters. Keys are the names
         of the parameters. Values are object with a method .ppf(x) which is the 
