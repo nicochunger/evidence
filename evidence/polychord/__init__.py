@@ -317,6 +317,7 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     default_settings = {'nlive': 25*ndim,
                         'num_repeats': 5*ndim,
                         'do_clustering': True,
+                        'write_resume': False,
                         'read_resume': False,
                         'feedback': 1,
                         'precision_criterion': 0.001,
@@ -404,16 +405,17 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     default_settings.update({'file_root': file_root, 'base_dir': base_dir})
 
     # Create PolyChorSettings object and assign settings
-    settings = PolyChordSettings(ndim, nderived, )
-    settings.nlive = default_settings['nlive']
-    settings.num_repeats = default_settings['num_repeats']
-    settings.do_clustering = default_settings['do_clustering']
-    # TODO Think about how to implement resumes
-    settings.read_resume = default_settings['read_resume']
-    settings.feedback = default_settings['feedback']
-    settings.precision_criterion = default_settings['precision_criterion']
-    settings.file_root = default_settings['file_root']
-    settings.base_dir = default_settings['base_dir']
-    settings.boost_posterior = default_settings['boost_posterior']
+    settings = PolyChordSettings(ndim, nderived, **default_settings)
+    # settings.nlive = default_settings['nlive']
+    # settings.num_repeats = default_settings['num_repeats']
+    # settings.do_clustering = default_settings['do_clustering']
+    # # TODO Think about how to implement resumes
+    # settings.write_resume = default_settings['write_resume']
+    # settings.read_resume = default_settings['read_resume']
+    # settings.feedback = default_settings['feedback']
+    # settings.precision_criterion = default_settings['precision_criterion']
+    # settings.file_root = default_settings['file_root']
+    # settings.base_dir = default_settings['base_dir']
+    # settings.boost_posterior = default_settings['boost_posterior']
 
     return settings
