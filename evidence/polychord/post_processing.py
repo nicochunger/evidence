@@ -62,6 +62,10 @@ def postprocess(path):
     output.base_dir = os.path.join(path, 'polychains')
 
     # Samples of posterior
+    del output.samples['loglike']
+    del output.samples['weight']
+    old_cols = output.samples.columns.values.tolist()
+    output.samples.rename(columns=dict(zip(old_cols, output.parnames)), inplace=True)
     samples = output.samples
     print(f'\nNr. of samples in posterior: {len(samples)}', file=f)
 

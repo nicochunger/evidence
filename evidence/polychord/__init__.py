@@ -194,11 +194,11 @@ def run(model, rundict, priordict, polysettings=None):
         paramnames = [(x, x) for x in parnames]
         output.make_paramnames_files(paramnames)
         # Delete loglike and weight columns
-        del output.samples['loglike']
-        del output.samples['weight']
-        old_cols = output.samples.columns.values.tolist()
-        output.samples.rename(columns=dict(
-            zip(old_cols, parnames)), inplace=True)
+        # del output.samples['loglike']
+        # del output.samples['weight']
+        # old_cols = output.samples.columns.values.tolist()
+        # output.samples.rename(columns=dict(
+        #     zip(old_cols, parnames)), inplace=True)
 
         # Assign additional parameters to output
         output.runtime = datetime.timedelta(seconds=tf-ti)
