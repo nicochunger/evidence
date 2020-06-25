@@ -4,10 +4,8 @@ Evidence Package Changes Log
 
 --------------------------------------------------------------------------------
 
-Release 0.1.4: May 11, 2020
+Release 0.1.4: June 25, 2020
 
-  - Posterior plots and results file now show the 1.48*MAD as the error for each
-    parameter. This is to avoid outliers and when the posterior is split.
   - If sesin and secos were used as free parameter, the post processing now checks
     for that and converts them to eccentricity and omega and plots those.
   - Corner plots were added to the post processing
@@ -15,6 +13,10 @@ Release 0.1.4: May 11, 2020
     This is added as a key to the rundict in the configfile called 'order_planets'.
     This should be a boolean to indicate if the ordering should happen or not.
     By default, if the key is not added, PolyChord will not order the planets.
+  - The post processing now uses the full weighted posterior samples instead of
+    the equally weighted posterior samples. This ensures a more reliable posterior
+    and it usually has much more points that the equally weighted one.
+  - The maxmimum likelihood point has been added to the results file.
 
 --------------------------------------------------------------------------------
 
