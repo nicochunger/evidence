@@ -283,7 +283,7 @@ class RVModel(BaseModel):
 
         return drift
 
-    def linear_parameter(self, time, indicator, kernel=None, timescale=0.5):
+    def linear_parameter(self, time, indicator, kernel=None, timescale=0.5, filter_type='lp'):
         """
         RV prediction for a linear dependece with some activity indicator. With
         option to smooth using a gaussian, box or epanechnikov kernel.
@@ -301,6 +301,10 @@ class RVModel(BaseModel):
             'box' and 'epanechnikov'.
         timescale : float, optional (default: 0.5)
             Time scale for the smoothing in years.
+        filter_type : str, optional (default: 'lp')
+            The filter type to use, either Low pass of High pass. The default is
+            Low pass filter with 'lp' or it can be set to High pass filter with
+            'hp'.
 
         Returns
         -------
@@ -330,7 +334,12 @@ class RVModel(BaseModel):
 
                 # Normalize
                 w /= np.sum(w)
-                series_smoothed[k] = np.sum(w*indicator)
+                if filter_type == 'lp':
+                    # Low pass filter
+                    series_smoothed[k] = np.sum(w*indicator)
+                elif filter_type == 'hp':
+                    # High pass filter
+                    series_smoothed[k] = indicator[k] - np.sum(w*indicator)
 
         # Normalize smoothed series to the interval [-1, 1]
         maxval = np.max(series_smoothed)
