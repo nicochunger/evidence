@@ -330,7 +330,7 @@ class RVModel(BaseModel):
                 elif kernel == 'epanechnikov':
                     w = (np.abs(delta_t) <= 1.0)*(1.0-delta_t**2)
                 else:
-                    raise ValueError("Chosen kernel is not a valid option.")
+                    raise ValueError(f"Chosen kernel ('{kernel}') is not a valid option.")
 
                 # Normalize
                 w /= np.sum(w)
