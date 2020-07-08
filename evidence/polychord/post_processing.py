@@ -69,18 +69,12 @@ def postprocess(path):
     samples = posterior.samples
     loglikes = posterior.loglikes
 
-    del output.samples['loglike']
-    del output.samples['weight']
-    old_cols = output.samples.columns.values.tolist()
-    output.samples.rename(columns=dict(zip(old_cols, output.parnames)), inplace=True)
     print(f'\nNr. of samples in posterior: {len(samples)}', file=f)
 
-    # Get the medians and std for each parameter
+    # Get the weighted medians and std for each parameter
     par_idxs = {par: i for i, par in enumerate(output.parnames)}
     averages = np.average(samples, weights=weights, axis=0)
     stds = np.sqrt(np.average((samples-averages)**2, weights=weights, axis=0))
-    # stds = samples.apply(st.median_absolute_deviation, axis=0)
-    # stds = samples.std()
     # Initialize DataFrame
     params = pd.DataFrame(index=output.parnames)
     params['Weighted mean'] = averages
