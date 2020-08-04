@@ -119,7 +119,7 @@ def postprocess(path):
                 print(
                     f"m*sin(i) = {min_mass(K, period, ecc, mstar)} Mearth", file=f)
                 print(f"a = {semi_mayor_axis(period, mstar)} AU", file=f)
-            except (ImportError, KeyError):
+            except (ImportError, KeyError, AttributeError):
                 print("No planet parameters could be extracted because of missing key")
 
     # Done with printing, close file
@@ -324,7 +324,10 @@ def postprocess(path):
 
                 # Calculate error with jitter
                 yerr = model.svrad[inst_idxs]
-                errs = np.sqrt(yerr**2 + pardict[f'{instrument}_jitter']**2)
+                if model.jitter_in_model:
+                    errs = np.sqrt(yerr**2 + pardict[f'{instrument}_jitter']**2)
+                else:
+                    errs = yerr
 
                 # Calculate reference point with maximum
                 if t_ref == 0:

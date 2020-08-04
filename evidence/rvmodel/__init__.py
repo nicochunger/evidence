@@ -117,6 +117,7 @@ class RVModel(BaseModel):
         self.nplanets = 0
         self.drift_in_model = False
         self.linpar_in_model = False
+        self.jitter_in_model = False
         for par in self.parnames:
             if 'k1' in par:
                 self.nplanets += 1
@@ -128,6 +129,9 @@ class RVModel(BaseModel):
 
             if 'linpar' in par:
                 self.linpar_in_model = True
+
+            if 'jitter' in par:
+                self.jitter_in_model = True
 
         self.time = self.data['rjd'].values.copy()
         self.vrad = self.data['vrad'].values.copy()
@@ -213,7 +217,10 @@ class RVModel(BaseModel):
             # Substract offsets
             rvm[inst_idxs] += pardict[f'{instrument}_offset']
             # Add jitter to noise
-            noise[inst_idxs] = self.svrad[inst_idxs]**2 + pardict[f'{instrument}_jitter']**2
+            if self.jitter_in_model:
+                noise[inst_idxs] = self.svrad[inst_idxs]**2 + pardict[f'{instrument}_jitter']**2
+            else:
+                noise[inst_idxs] = self.svrad[inst_idxs]**2
 
         # RV prediction
         if self.nplanets > 0:
