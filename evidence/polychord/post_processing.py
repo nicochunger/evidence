@@ -2,7 +2,7 @@ import os
 import matplotlib
 # If running in server the 'Agg' display enviornment has to be used
 home = os.getenv('HOME')
-if 'spectro' in home:
+if 'astro' in home:
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 

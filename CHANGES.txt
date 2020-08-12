@@ -7,6 +7,8 @@ Release 0.1.5:
   
   - linear_paramater in RVModel now has an additional keyword 'filter_type' to 
     indicate wether Low pass or High pass filter is desired.
+  - Fixed bug where RVModel couldn't be used without adding a jitter
+  - Fixed post_processing to work with new lesta directory layout
 
 --------------------------------------------------------------------------------
 
