@@ -221,7 +221,7 @@ def run(model, rundict, priordict, polysettings=None):
             output.starparams = rundict['star_params']
 
         # Print run time
-        print('\nTotal run time was: {}'.format(output.runtime))
+        print(f'\nTotal run time was: {output.runtime}')
 
         # Save output as pickle file
         dump2pickle_poly(output, output.file_root+'.dat')
@@ -388,8 +388,8 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
         file_root += f'_d{drift_order}'
 
     # Label the run with nr of planets, live points, nr of cores, sampler and date
-    file_root += '_nlive{}'.format(default_settings['nlive'])
-    file_root += '_ncores{}'.format(size)
+    file_root += f'_nlive{default_settings["nlive"]}'
+    file_root += f'_ncores{size}'
     file_root += '_polychord'
     file_root += '_'+isodate
 
@@ -406,16 +406,6 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
 
     # Create PolyChorSettings object and assign settings
     settings = PolyChordSettings(ndim, nderived, **default_settings)
-    # settings.nlive = default_settings['nlive']
-    # settings.num_repeats = default_settings['num_repeats']
-    # settings.do_clustering = default_settings['do_clustering']
-    # # TODO Think about how to implement resumes
-    # settings.write_resume = default_settings['write_resume']
-    # settings.read_resume = default_settings['read_resume']
-    # settings.feedback = default_settings['feedback']
-    # settings.precision_criterion = default_settings['precision_criterion']
-    # settings.file_root = default_settings['file_root']
-    # settings.base_dir = default_settings['base_dir']
-    # settings.boost_posterior = default_settings['boost_posterior']
+    # TODO Think about how to implement resumes
 
     return settings
