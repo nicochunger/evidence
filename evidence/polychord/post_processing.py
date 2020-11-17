@@ -22,6 +22,12 @@ def postprocess(path):
     posterior samples and produces phase fold plots for the planets. """
 
     # -------------------- SETUP ------------------------------
+    # Optional arguments
+    if len(sys.argv) > 1:
+        args = sys.argv[1:]
+    else:
+        args = []
+
     # Write all prints to a file to save for later
     save_path = os.path.join(path, 'results.txt')
     f = open(save_path, 'w')
@@ -73,12 +79,16 @@ def postprocess(path):
 
     # Get the weighted medians and std for each parameter
     par_idxs = {par: i for i, par in enumerate(output.parnames)}
-    averages = np.average(samples, weights=weights, axis=0)
-    stds = np.sqrt(np.average((samples-averages)**2, weights=weights, axis=0))
+
+    medians = np.median(samples, axis=0)
+    stds = np.std(samples, axis=0)
+
+    # averages = np.average(samples, weights=weights, axis=0)
+    # stds = np.sqrt(np.average((samples-averages)**2, weights=weights, axis=0))
     # Initialize DataFrame
     params = pd.DataFrame(index=output.parnames)
-    params['Weighted mean'] = averages
-    params['Weighted std'] = stds
+    params['Median'] = medians
+    params['Std'] = stds
     try:
         # Add prior for each parameter
         params['Prior'] = pd.Series(output.priors)
@@ -96,17 +106,17 @@ def postprocess(path):
             try:
                 from uncertainties import ufloat, umath
                 # Planet properties calculations
-                K = ufloat(params['Weighted mean'][f'planet{i+1}_k1'], params['Weighted std'][f'planet{i+1}_k1'])
+                K = ufloat(params['Median'][f'planet{i+1}_k1'], params['Std'][f'planet{i+1}_k1'])
                 period = ufloat(
-                    params['Weighted mean'][f'planet{i+1}_period'], params['Weighted std'][f'planet{i+1}_period'])
+                    params['Median'][f'planet{i+1}_period'], params['Std'][f'planet{i+1}_period'])
 
                 # Eccentricity extraction
                 if f'planet{i+1}_ecc' in output.parnames:
                     ecc = ufloat(
-                        params['Weighted mean'][f'planet{i+1}_ecc'], params['Weighted std'][f'planet{i+1}_ecc'])
+                        params['Median'][f'planet{i+1}_ecc'], params['Std'][f'planet{i+1}_ecc'])
                 else:
-                    secos = ufloat(params['Weighted mean'][f'planet{i+1}_secos'], params['Weighted std'][f'planet{i+1}_secos'])
-                    sesin = ufloat(params['Weighted mean'][f'planet{i+1}_sesin'], params['Weighted std'][f'planet{i+1}_sesin'])
+                    secos = ufloat(params['Median'][f'planet{i+1}_secos'], params['Std'][f'planet{i+1}_secos'])
+                    sesin = ufloat(params['Median'][f'planet{i+1}_sesin'], params['Std'][f'planet{i+1}_sesin'])
                     ecc = secos**2 + sesin**2
 
                 # Print planet parameters to results file
@@ -208,7 +218,7 @@ def postprocess(path):
         # Save figure
         # fig.tight_layout()
         if 'planet' in cat:
-            filename = f"{cat}_{params['Weighted mean'][f'{cat}_period']:.2f}_posteriors.png"
+            filename = f"{cat}_{params['Median'][f'{cat}_period']:.2f}_posteriors.png"
         else:
             filename = f'{cat}_posteriors.png'
         fig.savefig(os.path.join(path, filename), dpi=300)
@@ -225,17 +235,21 @@ def postprocess(path):
 
             # MAIN LOOP
             for i in range(nplanets):
-                period_post = output.posterior.samples[:,par_idxs[f'planet{i+1}_period']]
-                weighted_mean = np.average(period_post, weights=weights)
-                median = params['Weighted mean'][f'planet{i+1}_period']
+                period_post = samples[:,par_idxs[f'planet{i+1}_period']]
+                # weighted_mean = np.average(period_post, weights=weights)
+                median = params['Median'][f'planet{i+1}_period']
 
                 # Histogram
-                ax[i].hist(period_post, label='Posterior', bins='auto',
-                           histtype='step', density=True)
+                _, bins = np.histogram(period_post, bins='auto')
+                logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
 
-                # ax[i].set_title(f"Median = {median:5.3f} days")
-                ax[i].set_title(f"Weighted Mean = {weighted_mean:5.3f} days")
-                # TODO ADD vertical line for the median/weighted mean
+                ax[i].hist(period_post, label='Posterior', bins=logbins,
+                                        histtype='step', density=True)
+
+
+                ax[i].set_title(f"Median = {median:5.3f} days")
+                # ax[i].set_title(f"Median = {weighted_mean:5.3f} days")
+                # TODO ADD vertical line for the median/Median
                 ax[i].set_xlabel('Period [d]')
                 ax[i].set_xscale('log')
                 if i == 0:
@@ -251,10 +265,11 @@ def postprocess(path):
 
     # -------------------- CORNER PLOT -------------------------
     print('Plotting corner plot...')
-    corner_plot = corner(output.posterior.samples, weights=weights,
-                         labels=output.parnames, bins=40, show_titles=True,
-                         quantiles=[0.02275, 0.1585, 0.5, 0.8415, 0.97725])
-    corner_plot.savefig(os.path.join(path, 'corner_plot.png'), dpi=300)
+    if '-c' in args:
+        corner_plot = corner(output.posterior.samples, weights=weights,
+                            labels=output.parnames, bins=40, show_titles=True,
+                            quantiles=[0.02275, 0.1585, 0.5, 0.8415, 0.97725])
+        corner_plot.savefig(os.path.join(path, 'corner_plot.png'), dpi=300)
     # ----------------------------------------------------------
 
 
@@ -270,7 +285,7 @@ def postprocess(path):
         # Construct pardict with the median of each parameter
         pardict = {}
         for key in params.index:
-            pardict[key] = params['Weighted mean'][key]
+            pardict[key] = params['Median'][key]
         pardict.update(model.fixedpardict)
 
         # Initialize figure
@@ -284,7 +299,7 @@ def postprocess(path):
         # Get plot order of planets, from lowest to highest period
         periods = np.zeros(nplanets)
         for i in range(nplanets):
-            periods[i] = params['Weighted mean'][f'planet{i+1}_period']
+            periods[i] = params['Median'][f'planet{i+1}_period']
         periods_pos = np.argsort(periods)
 
         # Loop through the planets
