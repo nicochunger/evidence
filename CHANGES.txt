@@ -7,8 +7,14 @@ Release 0.1.5:
   
   - linear_paramater in RVModel now has an additional keyword 'filter_type' to 
     indicate wether Low pass or High pass filter is desired.
-  - Fixed bug where RVModel couldn't be used without adding a jitter
-  - Fixed post_processing to work with new lesta directory layout
+  - Fixed bug where RVModel couldn't be used without adding a jitter.
+  - Fixed post_processing to work with new lesta directory layout.
+  - Went back to using equally weighted posteriors for the histograms, and bins
+    equally spaced in log scale por the periods.
+  - Some minor aesthetic changes in the results file.
+  - The corner plot is now turned off by default and can be enabled by adding -c
+    when calling post_processing.py like 'python post_processing.py -c'. This is
+    because it takes a loot of time to process for big models.
 
 --------------------------------------------------------------------------------
 

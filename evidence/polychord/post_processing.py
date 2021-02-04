@@ -5,6 +5,7 @@ home = os.getenv('HOME')
 if 'astro' in home:
     matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 
 from pathlib import Path
 import importlib
@@ -48,8 +49,8 @@ def postprocess(path):
     print(f'Run ID: {output.rundict["runid"]}', file=f)
     if 'comment' in rundict_keys:
         print(f'Comment: {output.rundict["comment"]}', file=f)
-    print(f'Live points: {output.nlive}', file=f)
-    print(f'Repeats in slice sampling: {output.nrepeats}', file=f)
+    print(f'Live points: {output.nlive} ({output.nlive//output.ndim} * ndim)', file=f)
+    print(f'Repeats in slice sampling: {output.nrepeats} ({output.nrepeats//output.ndim} * ndim)', file=f)
     print(f'Cores used: {output.ncores}', file=f)
     print(f'Run time = {output.runtime}', file=f)
     print(f'Likelihood calculations = {output.nlike}', file=f)
@@ -69,24 +70,25 @@ def postprocess(path):
     output.base_dir = os.path.join(path, 'polychains')
 
     # Samples of posterior
+    parnames = output.parnames
     posterior = output.posterior
     weights = posterior.weights
     weights /= sum(weights) # Normalize weights
-    samples = posterior.samples
-    loglikes = posterior.loglikes
+    # Samples construction. Using equally weighted posterior samples
+    samples = output.samples
+    loglikes = samples['loglike']
+    del output.samples['loglike']
+    del output.samples['weight']
+    old_cols = output.samples.columns.values.tolist()
+    output.samples.rename(columns=dict(zip(old_cols, parnames)), inplace=True)
 
     print(f'\nNr. of samples in posterior: {len(samples)}', file=f)
-
-    # Get the weighted medians and std for each parameter
-    par_idxs = {par: i for i, par in enumerate(output.parnames)}
 
     medians = np.median(samples, axis=0)
     stds = np.std(samples, axis=0)
 
-    # averages = np.average(samples, weights=weights, axis=0)
-    # stds = np.sqrt(np.average((samples-averages)**2, weights=weights, axis=0))
     # Initialize DataFrame
-    params = pd.DataFrame(index=output.parnames)
+    params = pd.DataFrame(index=parnames)
     params['Median'] = medians
     params['Std'] = stds
     try:
@@ -100,6 +102,8 @@ def postprocess(path):
     print(params, file=f)
     print(params)
 
+    print('\n============== Planet parameters ==================', file=f)
+
     # Print planet parameters
     if (nplanets != None) and (nplanets != 0):
         for i in range(nplanets):
@@ -111,7 +115,7 @@ def postprocess(path):
                     params['Median'][f'planet{i+1}_period'], params['Std'][f'planet{i+1}_period'])
 
                 # Eccentricity extraction
-                if f'planet{i+1}_ecc' in output.parnames:
+                if f'planet{i+1}_ecc' in parnames:
                     ecc = ufloat(
                         params['Median'][f'planet{i+1}_ecc'], params['Std'][f'planet{i+1}_ecc'])
                 else:
@@ -132,20 +136,17 @@ def postprocess(path):
             except (ImportError, KeyError, AttributeError):
                 print("No planet parameters could be extracted because of missing key")
 
-    # Done with printing, close file
     # --------------------------------------------------------
 
 
     # ------------ MAXIMUM LIKELIHOOD ------------------------
-    # Maximum likelihood points
-    max_loglike_sample = samples[-1, :]
-    max_loglike = -1*loglikes[-1]
-    print(f'\nMax log Likelihood = {max_loglike}\n', file=f)
+    print('\n============== Maximum Likelihood Point ==================', file=f)
 
-    # Construct Pandas series to print
-    max_loglike_params = pd.Series(max_loglike_sample, index=output.parnames)
+    print(f'\nMax log Likelihood = {loglikes.iloc[-1]}\n', file=f)
 
-    print(max_loglike_params, file=f)
+    print(samples.iloc[-1], file=f)
+
+    # Done with printing, close file
     f.close()
     # --------------------------------------------------------
 
@@ -156,7 +157,7 @@ def postprocess(path):
     print('\nPlotting posterior distributions...')
     # Identify parameter categories
     categories = {}
-    for par in output.parnames:
+    for par in parnames:
         category = par.split('_')[0]
         parameter = par.split('_')[1]
         if category not in categories.keys():
@@ -168,31 +169,43 @@ def postprocess(path):
     for cat in categories.keys():
         print(f"\tPlotting posterior of category '{cat}'")
         pars = categories[cat]
-        fig, ax = plt.subplots(1, len(pars), figsize=(6*len(pars), 5), constrained_layout=True)
+        fig, axs = plt.subplots(1, len(pars), figsize=(6*len(pars), 5), constrained_layout=True)
         fig.suptitle(f'{run_label}\n{cat}', fontsize=14)
-        ax = np.atleast_1d(ax)  # To support 1 planet models
+        axs = np.atleast_1d(axs)  # To support 1 planet models
 
         for i, par in enumerate(pars):
-            # Check if secos and sesin were used and covert to ecc and omega
             if par == 'secos':
                 par = 'ecc'
-                secos = output.posterior.samples[:,par_idxs[f'{cat}_secos']]**2
-                sesin = output.posterior.samples[:,par_idxs[f'{cat}_sesin']]**2
+                secos = samples[f'{cat}_secos']**2
+                sesin = samples[f'{cat}_sesin']**2
                 par_post = secos**2 + sesin**2
-                median = np.average(par_post, weights=weights)
             elif par == 'sesin':
                 par = 'omega'
-                secos = output.posterior.samples[:,par_idxs[f'{cat}_secos']]**2
-                sesin = output.posterior.samples[:,par_idxs[f'{cat}_sesin']]**2
+                secos = samples[f'{cat}_secos']**2
+                sesin = samples[f'{cat}_sesin']**2
                 par_post = np.arctan2(sesin, secos)
-                median = np.average(par_post, weights=weights)
             else:
-                par_post = output.posterior.samples[:, par_idxs[f'{cat}_{par}']]
-                median = np.average(par_post, weights=weights)
+                par_post = samples[f'{cat}_{par}']
+
+            median = np.median(par_post)
 
             print(f"\t\tPlotting parameter '{par}'")
-            n, bin_edges, _ = ax[i].hist(par_post, label='Posterior', bins=250,
-                       histtype='step', density=True, weights=weights)
+
+            if ('planet' in cat) and ('period' in par):
+                n, bin_edges = np.histogram(par_post, bins='auto')
+                logbins = np.logspace(np.log10(bin_edges[0]),np.log10(bin_edges[-1]),len(bin_edges))
+
+                axs[i].hist(par_post, label='Posterior', bins=logbins,
+                                        histtype='step', density=True)
+
+                axs[i].set_xscale('log')
+
+                # To avoid scientific notation in the tick labels
+                axs[i].xaxis.set_major_formatter(ScalarFormatter())
+                axs[i].xaxis.set_minor_formatter(ScalarFormatter())
+            else:
+                n, bin_edges, _ = axs[i].hist(par_post, label='Posterior', bins='auto',
+                                                histtype='step', density=True)
 
             # Setting xlim so the histogram looks good and constrained
             # Cutting to a certain cutoff level
@@ -208,12 +221,12 @@ def postprocess(path):
                     right_edge = x 
                     break
 
-            ax[i].set_xlim([left_edge, right_edge])
+            axs[i].set_xlim([left_edge, right_edge])
 
-            ax[i].set_title(f"{par.capitalize()}\nMedian = {median:5.3f}")
-            ax[i].set_xlabel(par)
+            axs[i].set_title(f"{par.capitalize()}\nMedian = {median:5.3f}")
+            axs[i].set_xlabel(par)
             if i == 0:
-                ax[i].set_ylabel('PDF')
+                axs[i].set_ylabel('PDF')
 
         # Save figure
         # fig.tight_layout()
@@ -221,6 +234,8 @@ def postprocess(path):
             filename = f"{cat}_{params['Median'][f'{cat}_period']:.2f}_posteriors.png"
         else:
             filename = f'{cat}_posteriors.png'
+
+        
         fig.savefig(os.path.join(path, filename), dpi=300)
 
     # In addition to the category posterior plots, one more plot with only the
@@ -230,12 +245,13 @@ def postprocess(path):
         if (nplanets != None) and (nplanets != 0):
             print("\tPlotting posterior for planet periods")
             # Plot posterior for the period of each planet
-            fig, ax = plt.subplots(1, nplanets, figsize=(6*nplanets, 5))
-            ax = np.atleast_1d(ax)  # To support 1 planet models
+            fig, axs = plt.subplots(1, nplanets, figsize=(6*nplanets, 5))
+            axs = np.atleast_1d(axs)  # To support 1 planet models
+            plt.ticklabel_format(style='plain', axis='x')
 
             # MAIN LOOP
             for i in range(nplanets):
-                period_post = samples[:,par_idxs[f'planet{i+1}_period']]
+                period_post = samples[f'planet{i+1}_period']
                 # weighted_mean = np.average(period_post, weights=weights)
                 median = params['Median'][f'planet{i+1}_period']
 
@@ -243,20 +259,26 @@ def postprocess(path):
                 _, bins = np.histogram(period_post, bins='auto')
                 logbins = np.logspace(np.log10(bins[0]),np.log10(bins[-1]),len(bins))
 
-                ax[i].hist(period_post, label='Posterior', bins=logbins,
+                axs[i].hist(period_post, label='Posterior', bins=logbins,
                                         histtype='step', density=True)
 
 
-                ax[i].set_title(f"Median = {median:5.3f} days")
-                # ax[i].set_title(f"Median = {weighted_mean:5.3f} days")
-                # TODO ADD vertical line for the median/Median
-                ax[i].set_xlabel('Period [d]')
-                ax[i].set_xscale('log')
+                axs[i].set_title(f"Median = {median:5.3f} days")
+                # axs[i].set_title(f"Median = {weighted_mean:5.3f} days")
+                axs[i].vlines(median, 0, 1, transform=axs[i].get_xaxis_transform(), colors="red", linewidth=0.5)
+                axs[i].set_xlabel('Period [d]')
+                axs[i].set_xscale('log')
+
+                # To avoid scientific notation in the tick labels
+                axs[i].xaxis.set_major_formatter(ScalarFormatter())
+                axs[i].xaxis.set_minor_formatter(ScalarFormatter())
+
                 if i == 0:
-                    ax[i].set_ylabel('PDF')
+                    axs[i].set_ylabel('PDF')
 
             # Save figure
             fig.tight_layout()
+            
             fig.savefig(os.path.join(path, 'period_posteriors.png'), dpi=300)
     except KeyError:
         print("Couldn't plot posterior for planets because of missing keys.")
@@ -264,10 +286,10 @@ def postprocess(path):
 
 
     # -------------------- CORNER PLOT -------------------------
-    print('Plotting corner plot...')
     if '-c' in args:
+        print('Plotting corner plot...')
         corner_plot = corner(output.posterior.samples, weights=weights,
-                            labels=output.parnames, bins=40, show_titles=True,
+                            labels=parnames, bins=40, show_titles=True,
                             quantiles=[0.02275, 0.1585, 0.5, 0.8415, 0.97725])
         corner_plot.savefig(os.path.join(path, 'corner_plot.png'), dpi=300)
     # ----------------------------------------------------------
@@ -277,7 +299,7 @@ def postprocess(path):
     # TODO This entire section should be rewritten to something cleaner
     # Create phase fold plots for all planets in the model.
     # Load model
-    model = load_model(output, output.parnames)
+    model = load_model(output, parnames)
     # Check is model is an instance of RVModel
     if isinstance(model, RVModel) and (nplanets != None) and (nplanets != 0):
 
@@ -421,7 +443,7 @@ def min_mass(K, period, ecc, mstar):
     """ 
     Calculates de minimum mass using known parameters for the planet and the star
     K [m/s]: radial velocity amplitud 
-    period [days]: orbital period of planet
+    period [days]: orbital period of planet 
     ecc: eccentricity of planet
     mstar [Msun]: Mass of star in Sun masses
     """
