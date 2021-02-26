@@ -227,14 +227,16 @@ def run(model, rundict, priordict, polysettings=None):
         dump2pickle_poly(output, output.file_root+'.dat')
 
         base_dir_parent = str(Path(output.base_dir).parent.absolute())
+        runid_dir = Path(output.base_dir).parent.parent.absolute()
         # Save model as pickle file
         shutil.copy(model.model_path, base_dir_parent)
         # dump2pickle_poly(model, 'model.pkl', savedir=base_dir_parent)
 
         # Copy post processing script to this run's folder
         parent = Path(__file__).parent.absolute()
-        shutil.copy(os.path.join(
-            parent, 'post_processing.py'), base_dir_parent)
+        shutil.copy(os.path.join(parent, 'post_processing.py'), base_dir_parent)
+        # Copy FIP criterion scirpt to parent of runid
+        shutil.copy(os.path.join(parent, 'fip_criterion.py'), runid_dir)
 
         # Copy model file
         shutil.copy(model.model_path, base_dir_parent)
