@@ -343,19 +343,20 @@ def postprocess(path):
 
                 # Make RV prediction exluding the specified planet
                 prediction = model.kep_rv(pardict, t, exclude_planet=n)
-                if model.drift_in_model:
-                    drift_prediction = model.drift(pardict, t)
-                else:
-                    drift_prediction = np.zeros_like(t)
-                corrected_data = y - prediction - drift_prediction - \
-                                 pardict[f'{instrument}_offset']
+                # if model.drift_in_model:
+                #     drift_prediction = model.drift(pardict, t)
+                # else:
+                #     drift_prediction = np.zeros_like(t)
+                # corrected_data = y - prediction - drift_prediction - \
+                #                  pardict[f'{instrument}_offset']
 
                 corrected_data = y - pardict[f'{instrument}_offset']
                 corrected_data -= prediction
                 if model.drift_in_model:
                     corrected_data -= model.drift(pardict, t)
                 if model.linpar_in_model:
-                    corrected_data -= model.norm_linpar[inst_idxs]
+                    for linpar in model.linpar_dict:
+                        corrected_data -= pardict[f'linpar_{linpar}'] * model.linpar_dict[linpar][inst_idxs]
                 planet_prediction = model.modelk(pardict, t, planet=n)
                 full_prediction[inst_idxs] += planet_prediction
 

@@ -129,6 +129,10 @@ class RVModel(BaseModel):
 
             if 'linpar' in par:
                 self.linpar_in_model = True
+                # Dictionary to save all the linear parameters
+                # key has to be the name of the parameter (e.g. 'rhk') and value
+                # the array. So that the parameter can be called as pardict[key]
+                self.linpar_dict = {}
 
             if 'jitter' in par:
                 self.jitter_in_model = True
@@ -145,45 +149,6 @@ class RVModel(BaseModel):
 
         return
 
-    def kep_rv(self, pardict, time, exclude_planet=None):
-        """
-        Give rv prediction for all planets at time t. Has the option to exlude the
-        contribution of one of the planets. This option is used for phase folds.
-        Leave it at None if all planets should be included.
-
-        Parameters
-        ----------
-        pardict : dict
-            Dictionary with parameters for which prediction is to be computed.
-        time : ndarray or float
-            Time(s) at which prediction is computed
-        exclude_planet : int, optional
-            Number of the planet to be exluded
-
-        Returns
-        -------
-        rv_prediction : ndarray or float
-            Combined predicted radial velocities for the given times and orbital
-            parameters of all planets (except the exluded planet)
-        """
-
-        assert (type(exclude_planet) == type(None)) or (type(exclude_planet) == int), \
-            f"exclude_planet has to be an {int}, got {type(exclude_planet)}."
-
-        # Prepare array for planet-induced velocities
-        rv_planet = np.zeros((self.nplanets, len(time)))
-
-        for i in range(1, self.nplanets+1):
-            # Skip planet if it is the one to be exluded
-            if i != exclude_planet:
-                rv_planet[i-1] = self.modelk(pardict, time, planet=i)
-
-        # Sum effect of all planets to predicted velocity
-        rv_prediction = rv_planet.sum(axis=0)
-
-        return rv_prediction
-
-    # def predict_rv(self, time, pardict, )
 
     def log_likelihood(self, x):
         """
@@ -230,12 +195,18 @@ class RVModel(BaseModel):
         if self.drift_in_model:
             rvm += self.drift(pardict, self.time)
 
+        # Add linear Parameters
+        if self.linpar_in_model:
+            for linpar in self.linpar_dict:
+                rvm += pardict[f'linpar_{linpar}'] * self.linpar_dict[linpar]
+
         # Residual
         res = self.vrad - rvm
 
         loglike = self.logL(res, noise)
 
         return loglike
+
 
     def drift(self, pardict, time):
         """
@@ -289,6 +260,7 @@ class RVModel(BaseModel):
         drift = lin*tt + quad*tt**2 + cub*tt**3 + quar*tt**4
 
         return drift
+
 
     def linear_parameter(self, time, indicator, kernel=None, timescale=0.5, filter_type='lp'):
         """
@@ -355,6 +327,46 @@ class RVModel(BaseModel):
 
         # Return smoothed and normalized indicator series
         return norm_smooth
+
+
+    def kep_rv(self, pardict, time, exclude_planet=None):
+        """
+        Give rv prediction for all planets at time t. Has the option to exlude the
+        contribution of one of the planets. This option is used for phase folds.
+        Leave it at None if all planets should be included.
+
+        Parameters
+        ----------
+        pardict : dict
+            Dictionary with parameters for which prediction is to be computed.
+        time : ndarray or float
+            Time(s) at which prediction is computed
+        exclude_planet : int, optional
+            Number of the planet to be exluded
+
+        Returns
+        -------
+        rv_prediction : ndarray or float
+            Combined predicted radial velocities for the given times and orbital
+            parameters of all planets (except the exluded planet)
+        """
+
+        assert (type(exclude_planet) == type(None)) or (type(exclude_planet) == int), \
+            f"exclude_planet has to be an {int}, got {type(exclude_planet)}."
+
+        # Prepare array for planet-induced velocities
+        rv_planet = np.zeros((self.nplanets, len(time)))
+
+        for i in range(1, self.nplanets+1):
+            # Skip planet if it is the one to be exluded
+            if i != exclude_planet:
+                rv_planet[i-1] = self.modelk(pardict, time, planet=i)
+
+        # Sum effect of all planets to predicted velocity
+        rv_prediction = rv_planet.sum(axis=0)
+
+        return rv_prediction
+
 
     def modelk(self, pardict, time, planet):
         """
@@ -428,6 +440,7 @@ class RVModel(BaseModel):
         nu = self.true_anomaly(ma, ecc)
 
         return K_ms * (np.cos(nu + omega_rad) + ecc * np.cos(omega_rad))
+
 
     def true_anomaly(self, ma, ecc):
         """ 

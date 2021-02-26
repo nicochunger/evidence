@@ -3,7 +3,21 @@ Evidence Package Changes Log
 --------------------------------------------------------------------------------
 
 
-Release 0.1.5: 
+Release 0.2.0: TBA
+
+  - Introduction of the FIP criterion (Hara et al. 2021)
+    - In the parent folder of all the subruns of a particular model it will now
+      copy the script to calculate the FIP periodogram with the available runs.
+    - This automatically checks for finished runs and uses those.
+  - Prior ranges are no longer rounded for display. It could potentially be
+    problematic for very small numbers.
+  - linear parameters are now better taken into account in the RVModel. There is
+    a new dictionary linpar_dict where the user should add the linear parameters
+    and their corresponding timeseries. 
+
+--------------------------------------------------------------------------------
+
+Release 0.1.5: February 4, 2020
   
   - linear_paramater in RVModel now has an additional keyword 'filter_type' to 
     indicate wether Low pass or High pass filter is desired.
@@ -66,7 +80,7 @@ Release 0.1.0: March 02, 2020
 
     - New submodule: rvmodel
         - This submodel provides two classes to be used for the custom models
-        - BaseModel and rvmodel
+        - BaseModel and RVModel
         - BaseModel is a simple class which loads the data and has a log likliehood
           method for simple gaussian error likelihoods.
         - RVModel provides all elements needed for a radial velocities method.
