@@ -10,7 +10,8 @@ from ctypes import cdll, c_double, c_int, POINTER, c_float
 class BaseModel(object):
     """
     This is a very basic Model class to intialize and load the necessary
-    attributes and data.
+    attributes and data. It also provides a basic log likelihood function with
+    gaussian white noise.
 
     Createad attributes are: 
     fixeddict : contains all the fixed parameters
@@ -55,7 +56,7 @@ class BaseModel(object):
 
         return
 
-    def logL(self, residuals, noise):
+    def logL(self, residuals, var):
         """
         Basic log likelihood function with gaussian white noise.
 
@@ -63,7 +64,7 @@ class BaseModel(object):
         ----------
         residuals : ndarray
             Residuals between the data and the model
-        noise : ndarray
+        var : ndarray
             Array for the variance of each data point (var = sigma**2). This 
             should include all instrumental errors as well as any additional 
             jitter noise.
@@ -76,13 +77,13 @@ class BaseModel(object):
 
         N = len(residuals)  # Number of data points
         cte = -0.5 * N * np.log(2*np.pi)
-        return cte - np.sum(np.log(np.sqrt(noise))) - np.sum(residuals**2 / (2 * noise))
+        return cte - np.sum(np.log(np.sqrt(var))) - np.sum(residuals**2 / (2 * var))
 
 
 # Definition of Radial Velocities Model class
 class RVModel(BaseModel):
     """
-    This is a base radial velocities model class. This class now contains 
+    This is a base radial velocities model class. This class contains 
     all the essentials for any RV model. The idea is that for each new target 
     you create a model class that inherits from this base model class. 
     So if a custom model is wanted you only have to rewrite the log_likelihodd() 

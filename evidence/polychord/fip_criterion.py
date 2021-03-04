@@ -5,10 +5,10 @@
 How to use this script: 
 
 This file will automatically be placed in the parent folder of the PolyChord
-runs of a single target and configuration. Open a terminal in that folder and
+runs of a single target and runid. Open a terminal in that folder and
 run "python fip_criterion.py". The script will automatically detect which planet
 models finished running and how many iterations were done. It then computes the
-FIP periodogram (Hara et al. 2021) plots it, and prints some results to a file.
+FIP periodogram (Hara et al. 2021), plots it, and prints some results to a file.
 """
 
 # Python imports
