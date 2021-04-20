@@ -35,6 +35,8 @@ parser.add_argument(
     "-r", help="Wether to recalculate the FIP periodogram", type=bool, default=False)
 parser.add_argument(
     "-a", help="Whether to include aliases in the calculation of the FIP", type=bool, default=False)
+parser.add_argument(
+    "-s", help="Whether to show the FIP periodogram figure", type=bool, default=True)
 args = parser.parse_args()
 
 dirname = Path(__file__).parent.absolute()
@@ -131,7 +133,7 @@ if (maxplanets != None) and (maxplanets > nmod - 1):
 maxplanets = nmod - 1
 
 # File to save relevant data
-save_path = os.path.join(dirname, f'results_maxpla{maxplanets}.txt')
+save_path = os.path.join(dirname, f'results_{target}_{runid}_maxpla{maxplanets}.txt')
 f = open(save_path, 'w')
 
 print(f'Target: {target}', file=f)
@@ -181,10 +183,14 @@ instruments = list(output.datadict.keys())
 min_time = 1e9
 max_time = 0
 for inst in instruments:
-    mint = min(output.datadict[inst]['data']['rjd'].values)
+    try:
+        mint = min(output.datadict[inst]['data']['rjd'].values)
+        maxt = max(output.datadict[inst]['data']['rjd'].values)
+    except:
+        mint = min(output.datadict[inst]['data']['jdb'].values)
+        maxt = max(output.datadict[inst]['data']['jdb'].values)
     if mint < min_time:
         min_time = mint
-    maxt = max(output.datadict[inst]['data']['rjd'].values)
     if maxt > max_time:
         max_time = maxt
 
@@ -362,4 +368,6 @@ fip_peaks['-log10(fip)'] = peaks_fip
 print('\nFIP peaks:', file=f)
 print(fip_peaks, file=f)
 
-plt.show()
+# Show plot if indicated to do so
+if args.s:
+    plt.show()

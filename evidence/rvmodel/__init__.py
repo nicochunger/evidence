@@ -138,7 +138,10 @@ class RVModel(BaseModel):
             if 'jitter' in par:
                 self.jitter_in_model = True
 
-        self.time = self.data['rjd'].values.copy()
+        try:
+            self.time = self.data['rjd'].values.copy()
+        except:
+            self.time = self.data['jdb'].values.copy()
         self.vrad = self.data['vrad'].values.copy()
         self.svrad = self.data['svrad'].values.copy()
 

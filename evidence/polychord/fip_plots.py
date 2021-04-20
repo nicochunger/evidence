@@ -266,9 +266,11 @@ class fip_plots():
         plt.tight_layout() 
         
         if save:
-            string_save = self.starname.replace(' ', '_') + f'_FIP_periodogram_maxpla{number_highlighted_peaks_in}.pdf'
-            plt.savefig(string_save , rasterized = True,
+            string_save = self.starname.replace(' ', '_') + f'_FIP_periodogram_maxpla{number_highlighted_peaks_in}'
+            plt.savefig(string_save + '.pdf', rasterized = True,
                         format='pdf')
+            plt.savefig(string_save + '.png', rasterized = True,
+                        format='png', dpi=150)
 
         return fig, ax1, ax2, periods_maxpeaks, peakvalues_plot
             
