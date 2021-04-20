@@ -32,7 +32,8 @@ def test_no_planets():
     assert len(fixeddict.keys()) == 1
     assert len(datadict['hamilton']['data']) == 256
     assert rundict['target'] == '51Peg'
-    assert rundict['star_params']['star_mass'] == 1.11
+    assert rundict['star_params']['star_mass'][0] == 1.11
+    assert rundict['star_params']['star_mass'][1] == 0.02
     assert 'nplanets' not in rundict.keys()
 
 def test_with_planets():

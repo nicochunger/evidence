@@ -198,7 +198,8 @@ def test_51Peg_k1_d1():
 
 def clean_runs():
     # Delete chain folders if there are too many (too keep it clean)
-    chains_path = os.path.join(os.getenv('HOME'), 'evidence/tests/chains/')
+    chains_path = os.path.join(Path(__file__).parent.absolute(), 'chains/')
+    # chains_path = os.path.join(os.getenv('HOME'), 'evidence/tests/chains/')
     runs = os.listdir(chains_path)
     mod_times = []
     for run in runs:
