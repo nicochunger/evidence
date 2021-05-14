@@ -18,6 +18,9 @@ Release 0.2.0: TBA
   - FIP periodograms are saved both as pdf's and png's.
   - The FIP script now has an option to turn off the option to display the plots
     after running the code and instead just save the files for the plots.
+  - fip_plots now has a function called plot_multiple() which allows to plot
+    several FIP plots on top of each other. For example to compare different
+    runs of the same model, or to compare different models.
 
 --------------------------------------------------------------------------------
 

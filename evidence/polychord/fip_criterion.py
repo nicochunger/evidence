@@ -358,7 +358,7 @@ fipnu_mean = np.mean(np.maximum(fapnu, 1e-15), axis=0)
 from evidence.polychord import fip_plots
 fipplot = fip_plots.fip_plots(np.flip(nu), np.flip(fipnu_cut[0,:]))
 fipplot.starname = target
-_, _, _, peaks_period, peaks_fip = fipplot.plot_clean(highlighted_peaks, save=True)
+_, _, peaks_period, peaks_fip = fipplot.plot_clean(highlighted_peaks, save=True)
 
 # Save peaks and FIP values of the peaks
 fip_peaks = pd.DataFrame(columns=['period', '-log10(fip)'])
@@ -367,6 +367,7 @@ fip_peaks['-log10(fip)'] = peaks_fip
 
 print('\nFIP peaks:', file=f)
 print(fip_peaks, file=f)
+
 
 # Show plot if indicated to do so
 if args.s:

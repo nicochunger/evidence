@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
 class fip_plots():
-    def __init__(self, freq_radday = np.ones(1),
-                       fips = np.ones(1)):
+    def __init__(self, freq_radday = np.ones(1), fips = np.ones(1),
+                       starname = None):
 
         assert len(freq_radday) == len(fips), "Frequency array and FIP array must be the same length"
 
@@ -23,8 +23,11 @@ class fip_plots():
         self.omegas = freq_radday 
         self.fips = fips
         self.periods = 2*np.pi/freq_radday 
-        self.starname =  ''
         self.ltip = np.log10(1-fips)
+        if starname == None:
+            self.starname =  ''
+        else:
+            self.starname = starname
 
         self.fiplevel = None
         self.truepos = None
@@ -69,11 +72,17 @@ class fip_plots():
 
     def plot_clean(self,number_highlighted_peaks_in,
                    fip_orientation = 'up',
+                   fip_label = None,
+                   alpha=1,
+                   plot_tip=True,
                    annotations='periods',
                    marker_color = (0.85,0.325,0.098),
+                   colorfip=(0,0.447,0.741),
+                   colortip=(0.9290,0.6940,0.1250),
                    title = 'default',
                    save = False,
-                      **kwargs): 
+                   save_tag = None,
+                   **kwargs): 
         ''' 
         Plot the FIP periodogram with highlighted highest peaks
         INPUTS:
@@ -100,7 +109,7 @@ class fip_plots():
         peakvalues_plot = self.peakvalues[:number_highlighted_peaks]
         
         if title=='default':
-            fipperio_title = self.starname + ' ' + 'FIP periodogram'
+            fipperio_title = f'{self.starname} FIP periodogram'
         else:
             fipperio_title = title
         
@@ -110,88 +119,84 @@ class fip_plots():
             periods_plot =[]
         
 
-        bm = (0,0.447,0.741)
-        gr = (0.2,0.4,0.)
-        rr = (0.6,0.,0.6)#(0.8,0.447,0.741)
-        gy = (0.9290,0.6940,0.1250)
-        rm = (0.85,0.325,0.098)
-        
-        #fig = plt.figure(figsize=(10, 4))
+        # bm = (0,0.447,0.741)
+        # gr = (0.2,0.4,0.)
+        # rr = (0.6,0.,0.6)#(0.8,0.447,0.741)
+        # gy = (0.9290,0.6940,0.1250)
+        # rm = (0.85,0.325,0.098)
 
         if number_highlighted_peaks>0:
             periods_maxpeaks = periods_plot
+        else:
+            periods_maxpeaks = 0
         maxperiod = self.periods[0]
 
+        # Create figures
         fig, ax1 = plt.subplots(figsize=(10, 4))
-        colorfip = bm
-        colortip = gy
-        ax2 = ax1.twinx()   
-        ax2.set_ylabel('$\log_{10}$ TIP', 
-                       color=colortip,fontsize=18)
+        # colorfip = bm
+        # colortip = gy
      
-        ax2.semilogx(self.periods,self.ltip, alpha=0.7,
-                     color = colortip,  
-                     linewidth=1.2,zorder=-1)
+        # Plot TIP
+        if plot_tip:
+            ax2 = ax1.twinx() # Create another axis to plot the TIP
+            ax2.semilogx(self.periods,self.ltip, alpha=0.7,
+                        color=colortip, linewidth=1.2, zorder=-1)
+            ax2.set_ylabel(r'$\log_{10}$ TIP', color=colortip, fontsize=18)
 
-        ylim2 = ax2.get_ylim()
-        ax2.set_ylim([ylim2[0],0])        
+            # Set y limits
+            ylim2 = ax2.get_ylim()
+            ax2.set_ylim([ylim2[0],0])        
         
+        # Plot FIP
         if fip_orientation == 'up':
             ax1.plot(self.periods, self.mlog10fip, 
-                     linewidth=1.7,
-                     color=colorfip,
-                     rasterized = True,
-                     )
+                     linewidth=1.7, color=colorfip, alpha=alpha,
+                     label=fip_label)
+            ax1.set_xscale('log')
             ax1.set_ylim([0, np.max(self.mlog10fip)*1.15])
-            ax1.set_ylabel(r'-$\log_{10}$ FIP', 
-                       fontsize=18, color=colorfip)
-            ax1.set_zorder(ax2.get_zorder()+1)
-            ax1.patch.set_visible(False)     
-        
+            ax1.set_ylabel(r'-$\log_{10}$ FIP', fontsize=18, color=colorfip)
+            ax1.set_zorder(1) # Place on top of TIP
+            ax1.patch.set_visible(False)
         else:
             ax1.plot(self.periods, -self.mlog10fip, 
-                     linewidth=1.7
-                     , color=colorfip
-                     , rasterized = True)
-            ax1.set_ylim([np.min(-self.mlog10fip)*1.15,0]) 
-            ax1.set_ylabel(r'$\log_{10}$ FIP', 
-                       fontsize=18, color=colorfip)
+                     linewidth=1.7, color=colorfip, alpha=alpha,
+                     label=fip_label)
+            ax1.set_ylim([np.min(-self.mlog10fip)*1.15,0])
+            ax1.set_ylabel(r'$\log_{10}$ FIP', fontsize=18, color=colorfip)
             peakvalues_plot = - peakvalues_plot
                 
-        #axes = plt.gca()               
+        # Set x axis limits               
         minP = min(self.periods)
         maxP = max(self.periods)
         ax1.set_xlim([minP,maxP])
-            
+        
+        # Get width and height of final plot
         ylim = ax1.get_ylim()
         deltaY = ylim[1] - ylim[0]
         deltaX = np.log10(maxP) - np.log10(minP)
 
+        # Plot markers with highest peaks
         if number_highlighted_peaks>0:
-            
             if annotations is None:
                 point_label=''          
             elif annotations=='periods':
                 point_label = 'Peak periods (d)'
-            elif annotations in self.significance.keys():
-                point_label = annotations
             else:
                 raise Exception(('The annotations key word '
-            'has to be a key of the self.significance dictionary '
-            'or ''periods'' or None'))
+                          'has to be a key of the self.significance dictionary '
+                          'or ''periods'' or None'))
                 
-            #Cleaner outputs for standard significance evaluations
+            # Cleaner outputs for standard significance evaluations
             if annotations=='log10faps':
                 point_label = r'$\log_{10}$' + ' FAPs'
             if annotations=='log_bayesf_laplace':
                 point_label = r'$\log$' + ' Bayes factor'
             if annotations=='log10_bayesf_laplace':
-                point_label = r'$\log_{10}$' + ' Bayes factor'            
+                point_label = r'$\log_{10}$' + ' Bayes factor'
             
-            ax1.plot(periods_maxpeaks, 
-                     peakvalues_plot,'o',
-                     markersize=5, color=marker_color,
-                     label = point_label)
+            # Plot markers on highest peaks
+            ax1.plot(periods_maxpeaks, peakvalues_plot,'o',
+                     markersize=5, color=marker_color, label = point_label)
         
         
         y_legend = np.zeros(number_highlighted_peaks)
@@ -199,7 +204,8 @@ class fip_plots():
 
         for j in range(number_highlighted_peaks):
             
-            if annotations=='periods':
+            annotation = ''
+            if annotations == 'periods':
                 per = periods_maxpeaks[j]   
                 p = str(per)
                 indexpoint = p.find('.')
@@ -267,14 +273,41 @@ class fip_plots():
         
         if save:
             string_save = self.starname.replace(' ', '_') + f'_FIP_periodogram_maxpla{number_highlighted_peaks_in}'
-            plt.savefig(string_save + '.pdf', rasterized = True,
-                        format='pdf')
-            plt.savefig(string_save + '.png', rasterized = True,
-                        format='png', dpi=150)
+            if save_tag is not None:
+                assert type(save_tag) == str, "save_tag has to be a string"
+                string_save += save_tag
+            plt.savefig(string_save + '.pdf', format='pdf')
+            plt.savefig(string_save + '.png', format='png', dpi=150)
 
-        return fig, ax1, ax2, periods_maxpeaks, peakvalues_plot
+        return fig, ax1, periods_maxpeaks, peakvalues_plot
             
-            
+    def plot_multiple(self, fip_arrays, highlighted_peaks, labels=None, alpha=0.6):
+        # Define colormap
+        color_map = iter(plt.get_cmap('Dark2').colors)
+
+        fip_arrays = np.atleast_2d(fip_arrays) # To handle single arrays
+        if labels is not None:
+            fig, ax1, _, _ = self.plot_clean(highlighted_peaks, annotations=None,
+                                             fip_label=labels[0], alpha=alpha,
+                                             plot_tip=False, colorfip=next(color_map))
+            for i in range(1, len(fip_arrays)):
+                ax1.plot(self.periods, -np.log10(fip_arrays[i]), label=labels[i],
+                         linewidth=1.7, color=next(color_map), alpha=alpha)
+
+            ax1.set_ylim([0, np.max(-np.log10(fip_arrays))*1.15])
+            ax1.set_ylabel(r'-$\log_{10}$ FIP', fontsize=18, color='k')
+            ax1.tick_params(axis='y', colors='k')
+            ax1.legend()
+
+        else:
+            fig, ax1, _, _ = self.plot_clean(highlighted_peaks, annotations=None, alpha=alpha)
+            for i in range(1, len(fip_arrays)):
+                ax1.plot(self.periods, -np.log10(fip_arrays[i]), 
+                         linewidth=1.7, color=next(color_map), alpha=alpha)
+
+        filename = f"{self.starname.replace(' ', '')} _FIP_several_runs.png"
+        plt.savefig(filename, dpi=150)
+
             
     def plot_alpha(self, save=True, 
                    suffix = '',zoom_factor=2/5, path=''):
