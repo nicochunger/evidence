@@ -114,6 +114,10 @@ def run(model, rundict, priordict, polysettings=None):
                 if 'period' in par:
                     planet_idxs.append(i)
 
+    # Prepare run
+    nderived = 0
+    ndim = len(parnames)
+
     # Function to convert from hypercube to physical parameter space
     def prior(hypercube):
         """
@@ -122,28 +126,29 @@ def run(model, rundict, priordict, polysettings=None):
         """
 
         # Check if they are already sorted and skip ordering
-        idxs = np.arange(len(hypercube), dtype=np.int)
-        if 'order_planets' in rundict_keys:
-            if rundict['order_planets']: 
-                if not np.all(periods[:-1] <= periods[1:]):
-                    # Get periods for sorting
-                    periods = hypercube[planet_idxs]
-                    # Sort periods
-                    sorted_periods_args = np.argsort(periods)
-                    # Construct target index list
-                    for i, par in enumerate(parnames):
-                        if 'planet' not in par:
-                            idxs[i] = i
-                        else:
-                            planet = int(par[6])
-                            new_pos = list(sorted_periods_args).index(planet-1)
-                            internal_pos = planets[planet-1].index(i)
-                            target = planets[new_pos][internal_pos]
-                            idxs[i] = target
+        # idxs = np.arange(len(hypercube), dtype=np.int)
+        # if 'order_planets' in rundict_keys:
+        #     if rundict['order_planets']: 
+        #         # Get periods to check if they are sorted
+        #         periods = hypercube[planet_idxs]
+        #         # If not sorted, return 0 likelihood
+        #         if not np.all(periods[:-1] <= periods[1:]):
+        #             # # Sort periods
+        #             # sorted_periods_args = np.argsort(periods)
+        #             # # Construct target index list
+        #             # for i, par in enumerate(parnames):
+        #             #     if 'planet' not in par:
+        #             #         idxs[i] = i
+        #             #     else:
+        #             #         planet = int(par[6])
+        #             #         new_pos = list(sorted_periods_args).index(planet-1)
+        #             #         internal_pos = planets[planet-1].index(i)
+        #             #         target = planets[new_pos][internal_pos]
+        #             #         idxs[i] = target
 
         # Claculate physical parameters with ppf from prior
         theta = np.ones_like(hypercube)
-        for i, x in enumerate(idxs):
+        for i, x in enumerate(range(ndim)):
             param = parnames[i]
             theta[x] = priordict[param].ppf(hypercube[i])
 
@@ -156,11 +161,16 @@ def run(model, rundict, priordict, polysettings=None):
         Calculates de logarithm of the Likelihood given the parameter vector x. 
         """
 
-        return (model.log_likelihood(x), [])
+        # If the planets should be ordered, any configuration that is not will be
+        # set with Likelihood 0.
+        if 'order_planets' in rundict_keys:
+            if rundict['order_planets']:
+                periods = x[planet_idxs]
+                # Check if period are ordered
+                if not np.all(periods[:-1] <= periods[1:]):
+                    return (-1.0e30, [])
 
-    # Prepare run
-    nderived = 0
-    ndim = len(parnames)
+        return (model.log_likelihood(x), [])
 
     # Starting time to identify this specific run
     # If it's being run with more than one core the isodate on the first core

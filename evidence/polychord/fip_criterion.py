@@ -342,7 +342,7 @@ if len(diffs[check]) > 0:
     print('', file=f)
     print(convergence_fails, file=f)
 else:
-    print("Convergence achieved!!!")
+    print("Convergence achieved!")
 
 # ---------------------------------------------------
 

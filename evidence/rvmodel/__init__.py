@@ -372,7 +372,7 @@ class RVModel(BaseModel):
         return rv_prediction
 
 
-    def modelk(self, pardict, time, planet):
+    def modelk(self, pardict, time, planet, **kwargs):
         """
         Compute Keplerian curve of the radial velocity for a given planet.
 
@@ -441,12 +441,12 @@ class RVModel(BaseModel):
         # Compute mean anomaly at current time (or array)
         ma = 2*np.pi/P_day * (time - epoch) + ma0_rad
         # Compute true anomaly
-        nu = self.true_anomaly(ma, ecc)
+        nu = self.true_anomaly(ma, ecc, **kwargs)
 
         return K_ms * (np.cos(nu + omega_rad) + ecc * np.cos(omega_rad))
 
 
-    def true_anomaly(self, ma, ecc):
+    def true_anomaly(self, ma, ecc, tol=1.0e-4):
         """ 
         Takes the mean anomaly and the eccentricity and computes the true
         anomaly. This is done using the Newton-Raphson method and is the most
@@ -472,6 +472,6 @@ class RVModel(BaseModel):
 
         self.lib.trueanomaly(ma.ctypes.data_as(POINTER(c_double)), len(ma), ecc,
                              nu.ctypes.data_as(POINTER(c_double)), int(1.0e4),
-                             c_double(1.0e-4))
+                             c_double(tol))
 
         return nu

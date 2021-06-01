@@ -6,21 +6,27 @@ Evidence Package Changes Log
 Release 0.2.0: TBA
 
   - Introduction of the FIP criterion (Hara et al. 2021)
-    - In the parent folder of all the subruns of a particular model it will now
-      copy the script to calculate the FIP periodogram with the available runs.
-    - This automatically checks for finished runs and uses those.
+      - In the parent folder of all the subruns of a particular model it will now
+        copy the script to calculate the FIP periodogram with the available runs.
+      - This automatically checks for finished runs and uses those.
+      - fip_plots now has a function called plot_multiple() which allows to plot
+        several FIP plots on top of each other. For example to compare different
+        runs of the same model, or to compare different models.
+      - FIP periodograms are saved both as pdf's and png's.
+      - The FIP script now has an option to turn off the option to display the plots
+        after running the code and instead just save the files for the plots.
   - Prior ranges are no longer rounded for display. It could potentially be
     problematic for very small numbers.
   - Linear parameters are now better taken into account in the RVModel. There is
     a new dictionary linpar_dict where the user should add the linear parameters
     and their corresponding timeseries.
   - The time column in RV datasets can now also be 'jdb' instead of only 'rjd'.
-  - FIP periodograms are saved both as pdf's and png's.
-  - The FIP script now has an option to turn off the option to display the plots
-    after running the code and instead just save the files for the plots.
-  - fip_plots now has a function called plot_multiple() which allows to plot
-    several FIP plots on top of each other. For example to compare different
-    runs of the same model, or to compare different models.
+  - Changed the ordering planets option. Now it sets redudant solutions (where the
+    planets are not ordered) with Likelihood 0. Care should be taken with this 
+    option because it can change the value of the evidence and misrepresent the
+    models.
+  - Tolerance of true anomaly calculation should be able to define it more
+    upstream
 
 --------------------------------------------------------------------------------
 
