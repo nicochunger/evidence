@@ -19,8 +19,9 @@ from corner import corner
 
 
 def postprocess(path):
-    """ Script that does a post processing of the polychord output. It analyses
-    posterior samples and produces phase fold plots for the planets. """
+    """ Script that does a post processing of the nested sampling output. It analyses
+    posterior samples and produces phase fold plots for the planets.
+    It works with the output of both PolyChord and UltraNests. """
 
     # -------------------- SETUP ------------------------------
     # Optional arguments
@@ -34,10 +35,10 @@ def postprocess(path):
     f = open(save_path, 'w')
 
     # Load pickle file with polychord output
-    print('Loading pickle file with PolyChord output...')
+    print('Loading pickle file with Nested Sampling output...')
     run_label = str(path).split('/')[-1]
     output = pickle.load(
-        open(os.path.join(path, run_label+'.dat'), 'rb'), encoding='latin1')
+        open(os.path.join(path, run_label+'.pkl'), 'rb'), encoding='latin1')
     print(f'Run: {output.file_root}', file=f)
 
     rundict_keys = list(output.rundict.keys())
@@ -52,8 +53,9 @@ def postprocess(path):
     print(f'Live points: {output.nlive} ({output.nlive//output.ndim} * ndim)', file=f)
     print(f'Repeats in slice sampling: {output.nrepeats} ({output.nrepeats//output.ndim} * ndim)', file=f)
     print(f'Cores used: {output.ncores}', file=f)
-    print(f'Run time = {output.runtime}', file=f)
-    print(f'Likelihood calculations = {output.nlike}', file=f)
+    print(f'Run time: {output.runtime}', file=f)
+    print(f'Likelihood calculations: {output.nlike}', file=f)
+    print(f'Sampler: {output.sampler}', file=f)
 
     nplanets = None
     if 'nplanets' in rundict_keys:
@@ -64,23 +66,30 @@ def postprocess(path):
 
     # Run results
     print('\nResults:', file=f)
-    print(f'Evidence (logZ) = {output.logZ} +/- {output.logZerr}', file=f)
+    print(f'Evidence (logZ) = {output.logZ:.3f} +/- {output.logZerr:.3f}', file=f)
 
     # Change direcory of posterior
-    output.base_dir = os.path.join(path, 'polychains')
+    if output.sampler == 'PolyChord':
+        output.base_dir = os.path.join(path, 'polychains')
 
     # Samples of posterior
     parnames = output.parnames
-    posterior = output.posterior
-    weights = posterior.weights
-    weights /= sum(weights) # Normalize weights
+    # posterior = output.posterior
+    # weights = posterior.weights
+    # weights /= sum(weights) # Normalize weights
     # Samples construction. Using equally weighted posterior samples
     samples = output.samples
-    loglikes = samples['loglike']
-    del output.samples['loglike']
-    del output.samples['weight']
-    old_cols = output.samples.columns.values.tolist()
-    output.samples.rename(columns=dict(zip(old_cols, parnames)), inplace=True)
+    if output.sampler == 'PolyChord':
+        loglikes = samples['loglike']
+        del output.samples['loglike']
+        del output.samples['weight']
+        old_cols = output.samples.columns.values.tolist()
+        output.samples.rename(columns=dict(zip(old_cols, parnames)), inplace=True)
+    elif output.sampler == 'UltraNest':
+        wp_file = os.path.join(output.base_dir, 'run1/chains/weighted_post.txt')
+        weighted_post = pd.read_csv(wp_file, sep=' ')
+        loglikes = weighted_post['logl']
+        weights = weighted_post['weight']
 
     print(f'\nNr. of samples in posterior: {len(samples)}', file=f)
 
@@ -288,8 +297,7 @@ def postprocess(path):
     # -------------------- CORNER PLOT -------------------------
     if '-c' in args:
         print('Plotting corner plot...')
-        corner_plot = corner(output.posterior.samples, weights=weights,
-                            labels=parnames, bins=40, show_titles=True,
+        corner_plot = corner(samples, labels=parnames, bins=40, show_titles=True,
                             quantiles=[0.02275, 0.1585, 0.5, 0.8415, 0.97725])
         corner_plot.savefig(os.path.join(path, 'corner_plot.png'), dpi=300)
     # ----------------------------------------------------------

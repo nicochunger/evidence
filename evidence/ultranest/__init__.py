@@ -5,9 +5,10 @@ import datetime
 import time
 import shutil
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
-# from .post_processing import postprocess
+from evidence.post_processing import postprocess
 
 # PolyChord imports
 try:
@@ -140,17 +141,6 @@ def run(model, rundict, priordict, ultrasettings=None):
         Calculates de logarithm of the Likelihood given the parameter vector x. 
         """
 
-        # If the planets should be ordered, any configuration that is not will be
-        # set with Likelihood 0.
-        # if 'order_planets' in rundict_keys:
-        #     if rundict['order_planets']:
-        #         periods = x[planet_idxs]
-        #         # Check if period are ordered
-        #         if not np.all(periods[:-1] <= periods[1:]):
-        #             return (-1.0e30, [])
-
-        # print(x)
-
         return model.log_likelihood(x)
 
     # Starting time to identify this specific run
@@ -161,28 +151,35 @@ def run(model, rundict, priordict, ultrasettings=None):
         isodate = comm.bcast(isodate, root=0)
 
     # Create PolyChordSettings object for this run
-    # settings = set_polysettings(
-    #     rundict, polysettings, ndim, nderived, isodate, parnames)
+    settings = set_ultrasettings(rundict, ultrasettings, ndim, nderived, isodate, parnames)
+
+    # Find and indicate wrapped (circular) parameters like phases
+    wrapped_params = np.zeros(ndim, dtype=bool)
+    for i, par in enumerate(parnames):
+        if 'omega' in par or 'ml0' in par:
+            wrapped_params[i] = True
 
     # Set up the sampler
     sampler = ReactiveNestedSampler(parnames, loglike, prior,
-                                    log_dir = rundict['save_dir'],
+                                    log_dir = settings['log_dir'],
                                     num_test_samples = 100,
+                                    wrapped_params = wrapped_params,
+                                    num_bootstraps = settings['num_bootstraps'],
                                      #resume=False,
                                     # vectorized = True
                                     )
 
-    sampler.stepsampler = ultranest.stepsampler.RegionSliceSampler(nsteps=5*ndim)
+    # Use a slice sampler instead of rejection sampling
+    sampler.stepsampler = ultranest.stepsampler.RegionSliceSampler(nsteps=settings['nsteps'], adaptive_nsteps='move-distance')
 
     # Initialise clocks
     ti = time.process_time()
 
     # ----- Run UltraNest ------
-    sampler.run(min_num_live_points = ultrasettings['nlive'],
-                cluster_num_live_points= int(0.1*ultrasettings['nlive']),
-                #dlogz=0.5 + 0.1 * ndim,
-                #update_interval_iter_fraction=0.4 if ndim > 20 else 0.2,
-                # max_num_improvement_loops=3,
+    sampler.run(min_num_live_points = settings['nlive'],
+                cluster_num_live_points = int(0.1*settings['nlive']),
+                dlogz = settings['dlogz'],
+                frac_remain = settings['frac_remain']
                 )
     # --------------------------
 
@@ -197,77 +194,77 @@ def run(model, rundict, priordict, ultrasettings=None):
     # Print General results
     sampler.print_results()
 
-    if rank == 0:
-        sampler.plot()
-        print(f'Run time: {datetime.timedelta(seconds=tf-ti)}')
-
     # Save results
-    # if rank == 0:
-    #     # Cleanup of parameter names
-    #     paramnames = [(x, x) for x in parnames]
-    #     output.make_paramnames_files(paramnames)
-    #     # Delete loglike and weight columns
-    #     # del output.samples['loglike']
-    #     # del output.samples['weight']
-    #     # old_cols = output.samples.columns.values.tolist()
-    #     # output.samples.rename(columns=dict(
-    #     #     zip(old_cols, parnames)), inplace=True)
+    if rank == 0:
+        output = Output()
+        # Assign additional parameters to output
+        output.runtime = datetime.timedelta(seconds=tf-ti)
+        output.rundict = rundict.copy()
+        output.datadict = dict(model.datadict)
+        output.fixedpardict = dict(model.fixedpardict)
+        output.model_name = str(model.model_path.stem)
+        output.nlive = settings['nlive']
+        output.nrepeats = settings['nsteps']
+        output.isodate = isodate
+        output.ncores = size
+        output.parnames = parnames
+        output.ndim = ndim
+        output.sampler = 'UltraNest'
+        output.base_dir = settings['log_dir']
+        output.file_root = settings['file_root']
+        output.logZ = sampler.results['logz']
+        output.logZerr = sampler.results['logzerr']
+        output.nlike = sampler.results['ncall']
 
-    #     # Assign additional parameters to output
-    #     output.runtime = datetime.timedelta(seconds=tf-ti)
-    #     output.rundict = rundict.copy()
-    #     output.datadict = dict(model.datadict)
-    #     output.fixedpardict = dict(model.fixedpardict)
-    #     output.model_name = str(model.model_path.stem)
-    #     output.nlive = settings.nlive
-    #     output.nrepeats = settings.num_repeats
-    #     output.isodate = isodate
-    #     output.ncores = size
-    #     output.parnames = parnames
-    #     output.ndim = ndim
+        output.samples = pd.DataFrame(sampler.results['samples'], columns=parnames)
 
-    #     # Add additional information if provided
-    #     if 'prior_names' in rundict_keys:
-    #         output.priors = rundict['prior_names']
+        # Add additional information if provided
+        if 'prior_names' in rundict_keys:
+            output.priors = rundict['prior_names']
 
-    #     if 'star_params' in rundict_keys:
-    #         output.starparams = rundict['star_params']
+        if 'star_params' in rundict_keys:
+            output.starparams = rundict['star_params']
 
-    #     # Print run time
-    #     print(f'\nTotal run time was: {output.runtime}')
+        # Print run time
+        print(f'\nTotal run time was: {output.runtime}')
 
-    #     # Save output as pickle file
-    #     dump2pickle_poly(output, output.file_root+'.dat')
 
-    #     base_dir_parent = str(Path(output.base_dir).parent.absolute())
-    #     runid_dir = Path(output.base_dir).parent.parent.absolute()
-    #     # Save model as pickle file
-    #     shutil.copy(model.model_path, base_dir_parent)
-    #     # dump2pickle_poly(model, 'model.pkl', savedir=base_dir_parent)
+        # Plot results
+        sampler.plot()
 
-    #     # Copy post processing script to this run's folder
-    #     parent = Path(__file__).parent.absolute()
-    #     shutil.copy(os.path.join(parent, 'post_processing.py'), base_dir_parent)
-    #     # Copy FIP criterion scirpt to parent of runid
-    #     shutil.copy(os.path.join(parent, 'fip_criterion.py'), runid_dir)
+        base_dir_parent = str(Path(output.base_dir).parent.absolute())
+        runid_dir = Path(output.base_dir).parent.parent.absolute()
+        # Save model file
+        shutil.copy(model.model_path, base_dir_parent)
+        # Save output as pickle file
+        # print(base_dir_parent)
+        # run_label = os.path.basename(base_dir_parent)
+        # print(run_label)
+        dump2pickle_poly(output, output.file_root+'.pkl')
 
-    #     # Copy model file
-    #     shutil.copy(model.model_path, base_dir_parent)
+        # Copy post processing script to this run's folder
+        parent = Path(__file__).parent.parent.absolute()
+        shutil.copy(os.path.join(parent, 'post_processing.py'), base_dir_parent)
+        # Copy FIP criterion scirpt to parent of runid
+        shutil.copy(os.path.join(parent, 'fip_criterion.py'), runid_dir)
 
-    #     # Run post processing script
-    #     postprocess(base_dir_parent)
+        # Copy model file
+        shutil.copy(model.model_path, base_dir_parent)
+
+        # Run post processing script
+        postprocess(base_dir_parent)
 
     return #output
 
 
 def dump2pickle_poly(output, filename, savedir=None):
     """ 
-    Takes the output from PolyChord and saves it as a pickle file.
+    Takes the output from UltraNest and saves it as a pickle file.
 
     Parameters
     ----------
-    output : PolyChordOutput object
-        Object file with the output from the PolyChord run
+    output : Output object
+        Object file with the output infos from the UltraNest run
     filename : str
         Name of the saved file
     savedir : str, optional
@@ -298,17 +295,19 @@ def dump2pickle_poly(output, filename, savedir=None):
     return
 
 
-def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
+def set_ultrasettings(rundict, ultrasettings, ndim, nderived, isodate, parnames):
     """ 
-    Sets the correct settings for polychord and returns the PolyChordSettings 
-    object.
+    Sets the correct settings for UltraNest and returns a dictionary with the
+    settings. It combines the default settings and overwrites the used defined
+    settings. It cointains the settings for both the initialization of the
+    samples and the its run function.
 
     Parameters
     ----------
     rundict : dict
         Dictionary with information about the run itself.
     polysettings : dict
-        Dictionary with the custom PolyChord settings to be set for this run
+        Dictionary with the custom UltraNest settings to be set for this run
     ndim : int
         Number of free parameters
     nderived : int
@@ -320,8 +319,8 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
 
     Returns
     -------
-    settings : PolyChordSettings object
-        Object with all the information that PolyChord needs to run nested
+    settings : dict
+        Object with all the information that UltraNest needs to run nested
         sampling on this model.
     """
 
@@ -330,57 +329,22 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     # Use the settings provided in polysettings otherwise use default
     # Definition of default values for PolyChordSettings
     default_settings = {'nlive': 25*ndim,
-                        'num_repeats': 5*ndim,
-                        'do_clustering': True,
-                        'write_resume': False,
-                        'read_resume': False,
-                        'feedback': 1,
-                        'precision_criterion': 0.001,
-                        'boost_posterior': 0.0
+                        'nsteps': 3*ndim,
+                        'dlogz': 0.5,
+                        'frac_remain': 0.01,
+                        'num_bootstraps': 30
                         }
 
     # Update default values with settings provided by user
-    if polysettings != None:
-        if type(polysettings) is not dict:
-            raise TypeError("polysettings has to be a dictionary")
+    if ultrasettings != None:
+        if type(ultrasettings) is not dict:
+            raise TypeError("ultrasettings has to be a dictionary")
         else:
-            setting = 'nlive'
-            if setting in polysettings.keys():
-                if type(polysettings[setting]) is not int:
-                    raise TypeError(
-                        f'{setting} has to be an integer (got type {type(polysettings[setting])})')
-
-            setting = 'num_repeats'
-            if setting in polysettings.keys():
-                if type(polysettings[setting]) is not int:
-                    raise TypeError(
-                        f'{setting} has to be an integer (got type {type(polysettings[setting])})')
-
-            setting = 'do_clustering'
-            if setting in polysettings.keys():
-                if type(polysettings[setting]) is not bool:
-                    raise TypeError(
-                        f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
-
-            setting = 'read_resume'
-            if setting in polysettings.keys():
-                if type(polysettings[setting]) is not bool:
-                    raise TypeError(
-                        f'{setting} has to be a boolean (got type {type(polysettings[setting])})')
-
-            setting = 'precision_criterion'
-            if setting in polysettings.keys():
-                if type(polysettings[setting]) is not float:
-                    raise TypeError(
-                        f'{setting} has to be a float (got type {type(polysettings[setting])})')
-
-            default_settings.update(polysettings)
+            default_settings.update(ultrasettings)
 
     # Define fileroot name (identifies this specific run)
-    rundict['target'] = rundict['target'].replace(
-        ' ', '')  # Remove any whitespace
-    rundict['runid'] = rundict['runid'].replace(
-        ' ', '')  # Remove any whitespace
+    rundict['target'] = rundict['target'].replace(' ', '')  # Remove any whitespace
+    rundict['runid'] = rundict['runid'].replace(' ', '')  # Remove any whitespace
     file_root = rundict['target']+'_'+rundict['runid']
 
     # Add comment if it exists and is not empty
@@ -405,7 +369,7 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
     # Label the run with nr of planets, live points, nr of cores, sampler and date
     file_root += f'_nlive{default_settings["nlive"]}'
     file_root += f'_ncores{size}'
-    file_root += '_polychord'
+    file_root += '_ultranest'
     file_root += '_'+isodate
 
     # Base directory
@@ -414,13 +378,16 @@ def set_polysettings(rundict, polysettings, ndim, nderived, isodate, parnames):
         save_dir = rundict['save_dir']
     else:
         save_dir = ''
-    base_dir = os.path.join(save_dir, file_root, 'polychains')
+    base_dir = os.path.join(save_dir, file_root, 'ultraresults')
 
     # Update settings dictionary with fileroot and basedir
-    default_settings.update({'file_root': file_root, 'base_dir': base_dir})
+    default_settings.update({'log_dir': base_dir, 'file_root': file_root})
 
     # Create PolyChorSettings object and assign settings
-    settings = PolyChordSettings(ndim, nderived, **default_settings)
+    # settings = PolyChordSettings(ndim, nderived, **default_settings)
     # TODO Think about how to implement resumes
 
-    return settings
+    return default_settings
+
+class Output:
+    pass

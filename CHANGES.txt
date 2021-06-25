@@ -5,6 +5,17 @@ Evidence Package Changes Log
 
 Release 0.2.0: TBA
 
+  - Introduction of a new Nested Sampler: UltraNest (Buchner 2021)
+      - All functions remain the same, but one can now choose to run the nested
+        sampling with UltraNest. To do this just import the ultranest submodule
+        and run with the run() function. Same configfiles can be used than the
+        ones from PolyChord.
+      - This new sampler also introduces new tuning parameters so these have to
+        be indicated in a ultrasettings dictionary thats given to the run function.
+        keyword arguments for these tuning parameters are the same as the ultranest
+        keywords.
+      - post_processing and fip_crtierion scripts have been adapted to work with
+        both samplers
   - Introduction of the FIP criterion (Hara et al. 2021)
       - In the parent folder of all the subruns of a particular model it will now
         copy the script to calculate the FIP periodogram with the available runs.
@@ -27,6 +38,13 @@ Release 0.2.0: TBA
     models.
   - Tolerance of true anomaly calculation should be able to define it more
     upstream
+  - Sorted Priors can now be used for parameters that need to be sorted at the
+    prior level. To use this just set the prior for those parameters as either
+    'SortedUniform' or 'SortedLogUniform' and the package will handle the prior
+    assignation. All parameters that have one of the two sorted priors will be
+    considered to be part of the same group. So all parameters with the 'SortedUniform'
+    prior will be grouped to have sorted values in the prior. Same for log uniform
+    prior.
 
 --------------------------------------------------------------------------------
 

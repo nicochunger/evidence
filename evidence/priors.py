@@ -4,6 +4,7 @@ Module with functions concerning Priors
 import numpy as n
 from scipy import stats, interpolate
 from scipy.stats import rv_continuous
+from pypolychord import priors
 
 # Number of points to sample CDF and get PPF from inversion
 N = 1e4
@@ -459,6 +460,9 @@ Beta = beta_gen(name='Beta distribution', shapes='a, b', a=0.0, b=1.0)
 Gamma = gamma_gen(name='Gamma distribution', shapes='alpha, beta',
                        a=0.0)
 
+SortedUniform = priors.SortedUniformPrior
+SortedLogUniform = priors.LogSortedUniformPrior
+
 # Construct dictionary
 distdict = globals().copy()
 
@@ -490,8 +494,8 @@ def prior_constructor(input_dict, customprior_dict=None):
                 #nparams = distdict[priortype][1] 
                 prior = distdict[priortype](*pars)
             except KeyError:
-                raise PriorError('Parameter {}_{}: Unknown type '
-                                 'of prior.'.format(objkey, parkey))
+                raise PriorError(f'Parameter {objkey}_{parkey}: Unknown type '
+                                 'of prior.')
             
             priordict[objkey+'_'+parkey] = prior
 

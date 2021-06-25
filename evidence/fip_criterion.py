@@ -361,9 +361,10 @@ fipplot.starname = target
 _, _, peaks_period, peaks_fip = fipplot.plot_clean(highlighted_peaks, save=True)
 
 # Save peaks and FIP values of the peaks
-fip_peaks = pd.DataFrame(columns=['period', '-log10(fip)'])
+fip_peaks = pd.DataFrame(columns=['period', '-log10(fip)', 'fip'])
 fip_peaks['period'] = peaks_period
 fip_peaks['-log10(fip)'] = peaks_fip
+fip_peaks['fip'] = 10**(-peaks_fip)
 
 print('\nFIP peaks:', file=f)
 print(fip_peaks, file=f)

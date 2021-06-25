@@ -7,12 +7,13 @@ import shutil
 import numpy as np
 from pathlib import Path
 
-from .post_processing import postprocess
+from evidence.post_processing import postprocess
 
 # PolyChord imports
 try:
     from pypolychord import run_polychord
     from pypolychord.settings import PolyChordSettings
+    from pypolychord import priors
 except ImportError:
     raise ImportError("Install PolyChord to use this module.")
 
@@ -125,32 +126,36 @@ def run(model, rundict, priordict, polysettings=None):
         their respective priors.
         """
 
-        # Check if they are already sorted and skip ordering
-        # idxs = np.arange(len(hypercube), dtype=np.int)
-        # if 'order_planets' in rundict_keys:
-        #     if rundict['order_planets']: 
-        #         # Get periods to check if they are sorted
-        #         periods = hypercube[planet_idxs]
-        #         # If not sorted, return 0 likelihood
-        #         if not np.all(periods[:-1] <= periods[1:]):
-        #             # # Sort periods
-        #             # sorted_periods_args = np.argsort(periods)
-        #             # # Construct target index list
-        #             # for i, par in enumerate(parnames):
-        #             #     if 'planet' not in par:
-        #             #         idxs[i] = i
-        #             #     else:
-        #             #         planet = int(par[6])
-        #             #         new_pos = list(sorted_periods_args).index(planet-1)
-        #             #         internal_pos = planets[planet-1].index(i)
-        #             #         target = planets[new_pos][internal_pos]
-        #             #         idxs[i] = target
-
         # Claculate physical parameters with ppf from prior
         theta = np.ones_like(hypercube)
-        for i, x in enumerate(range(ndim)):
+        sorteduni_params_idxs = []
+        sortedloguni_params_idxs = []
+        for i in range(ndim):
             param = parnames[i]
-            theta[x] = priordict[param].ppf(hypercube[i])
+            # TODO Check for isinstance() SortedUniformPrior or LogSortedUniformPrior
+            # In that case for now skip the priortransform calculation and keep track of the
+            # of the parameters with the same sorted prior.
+            if isinstance(priordict[param], priors.SortedUniformPrior):
+                sorteduni_params_idxs.append(i)
+                prior_sortuni = priordict[param]
+            elif isinstance(priordict[param], priors.LogSortedUniformPrior):
+                sortedloguni_params_idxs.append(i)
+                prior_sortloguni = priordict[param]
+            else:
+                theta[i] = priordict[param].ppf(hypercube[i])
+
+        # Then calculate the sorted prior for those parameters, remembering where they were
+        # in the array to insert the results back in the same order.
+        if len(sorteduni_params_idxs) > 0:
+            theta[sorteduni_params_idxs] = prior_sortuni(hypercube[sorteduni_params_idxs])
+
+        if len(sortedloguni_params_idxs) > 0:
+            theta[sortedloguni_params_idxs] = prior_sortloguni(hypercube[sortedloguni_params_idxs])
+
+
+        # print(parnames)
+        # print(hypercube)
+        # print(theta)
 
         return theta
 
@@ -160,15 +165,6 @@ def run(model, rundict, priordict, polysettings=None):
         """
         Calculates de logarithm of the Likelihood given the parameter vector x. 
         """
-
-        # If the planets should be ordered, any configuration that is not will be
-        # set with Likelihood 0.
-        if 'order_planets' in rundict_keys:
-            if rundict['order_planets']:
-                periods = x[planet_idxs]
-                # Check if period are ordered
-                if not np.all(periods[:-1] <= periods[1:]):
-                    return (-1.0e30, [])
 
         return (model.log_likelihood(x), [])
 
@@ -222,6 +218,7 @@ def run(model, rundict, priordict, polysettings=None):
         output.ncores = size
         output.parnames = parnames
         output.ndim = ndim
+        output.sampler = 'PolyChord'
 
         # Add additional information if provided
         if 'prior_names' in rundict_keys:
@@ -234,7 +231,7 @@ def run(model, rundict, priordict, polysettings=None):
         print(f'\nTotal run time was: {output.runtime}')
 
         # Save output as pickle file
-        dump2pickle_poly(output, output.file_root+'.dat')
+        dump2pickle_poly(output, output.file_root+'.pkl')
 
         base_dir_parent = str(Path(output.base_dir).parent.absolute())
         runid_dir = Path(output.base_dir).parent.parent.absolute()
@@ -243,7 +240,7 @@ def run(model, rundict, priordict, polysettings=None):
         # dump2pickle_poly(model, 'model.pkl', savedir=base_dir_parent)
 
         # Copy post processing script to this run's folder
-        parent = Path(__file__).parent.absolute()
+        parent = Path(__file__).parent.parent.absolute()
         shutil.copy(os.path.join(parent, 'post_processing.py'), base_dir_parent)
         # Copy FIP criterion scirpt to parent of runid
         shutil.copy(os.path.join(parent, 'fip_criterion.py'), runid_dir)
