@@ -71,6 +71,8 @@ def postprocess(path):
     # Change direcory of posterior
     if output.sampler == 'PolyChord':
         output.base_dir = os.path.join(path, 'polychains')
+    elif output.sampler == 'UltraNest':
+        output.base_dir = os.path.join(path, 'ultraresults')
 
     # Samples of posterior
     parnames = output.parnames

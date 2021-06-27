@@ -4,8 +4,8 @@
 """ 
 How to use this script: 
 
-This file will automatically be placed in the parent folder of the PolyChord
-runs of a single target and runid. Open a terminal in that folder and
+This file will automatically be placed in the parent folder of the PolyChord or
+UltraNest runs of a single target and runid. Open a terminal in that folder and
 run "python fip_criterion.py". The script will automatically detect which planet
 models finished running and how many iterations were done. It then computes the
 FIP periodogram (Hara et al. 2021), plots it, and prints some results to a file.
@@ -32,11 +32,11 @@ parser.add_argument(
     "-n", help="Maximum number of planets to use FIP periodogram. \
                 Default is 0 and this will get the maximum planets available.", type=int, default=0)
 parser.add_argument(
-    "-r", help="Wether to recalculate the FIP periodogram", type=bool, default=False)
+    "--recalculate-fap", help="Wether to recalculate the FIP periodogram", action='store_true')
 parser.add_argument(
-    "-a", help="Whether to include aliases in the calculation of the FIP", type=bool, default=False)
+    "--with-alias", help="Whether to include aliases in the calculation of the FIP", action='store_true')
 parser.add_argument(
-    "-s", help="Whether to show the FIP periodogram figure", type=bool, default=True)
+    "--show-fig", help="Whether to show the FIP periodogram figure", action='store_true')
 args = parser.parse_args()
 
 dirname = Path(__file__).parent.absolute()
@@ -52,8 +52,6 @@ runs = [name for name in os.listdir(dirname) if os.path.isdir(name)]
 # Sort the runs
 runs.sort()
 
-# If the FIP periodogram should be recomputed instead of loading an old computation.
-re_calculate_faps = args.r
 # Maximum number of planets to use
 maxplanets = args.n
 if maxplanets == 0:
@@ -158,20 +156,37 @@ for run in runs:
         if 'logZ' in list(posteriors[idx][nplanets].keys()):
             idx += 1
         else:
+            # Load output file
             output = pickle.load(
-                            open(os.path.join(dirname, run, run+'.dat'), 'rb'),
+                            open(os.path.join(dirname, run, run+'.pkl'), 'rb'),
                             encoding='latin1')
-            output.base_dir = os.path.join(dirname, run, 'polychains')
+            
+            # Change the directory for each sampler
+            if output.sampler == 'PolyChord':
+                output.base_dir = os.path.join(dirname, run, 'polychains')
+            elif output.sampler == 'UltraNest':
+                output.base_dir = os.path.join(dirname, run, 'ultraresults')
 
+            # If model is with 0 planet there are no period samples, so just save
+            # evidence and runtime
             if nplanets == 0:
                 posteriors[idx][nplanets].update({'logZ': output.logZ})
                 posteriors[idx][nplanets].update({'runtime': output.runtime})
             else:
+                # Get columns with planet periods
                 periods_idxs = get_period_columns(output)
-                run_samples = output.posterior.samples[:, periods_idxs]
+                # Extract posterior smaples with their weights
+                if output.sampler == 'PolyChord':
+                    run_samples = output.posterior.samples[:, periods_idxs]
+                    weights = output.posterior.weights
+                elif output.sampler == 'UltraNest':
+                    wp_file = os.path.join(output.base_dir, 'run1/chains/weighted_post.txt')
+                    weighted_post = pd.read_csv(wp_file, sep=' ')
+                    run_samples = weighted_post.iloc[:, periods_idxs+2].values
+                    weights = weighted_post['weight'].values
 
                 posteriors[idx][nplanets].update({'samples': run_samples})
-                posteriors[idx][nplanets].update({'weights': output.posterior.weights})
+                posteriors[idx][nplanets].update({'weights': weights})
                 posteriors[idx][nplanets].update({'logZ': output.logZ})
                 posteriors[idx][nplanets].update({'runtime': output.runtime})
             inserted = True
@@ -267,9 +282,7 @@ os.makedirs(f'fipnus', exist_ok=True)
 fapnu_dir = f'fipnus/fipnu_{target}_{runid}_maxpla{maxplanets}.txt'
 np.savetxt("fipnus/nu.txt", nu)
 
-with_aliases = args.a
-
-if (not os.path.isfile(fapnu_dir)) or re_calculate_faps:
+if (not os.path.isfile(fapnu_dir)) or args.recalculate_fap:
     # Matrix for fapnus. Rows are each run, columns the individial frequencies
     fapnu = np.ones([min_iters, nfreq])
     # Loop over runs
@@ -284,7 +297,7 @@ if (not os.path.isfile(fapnu_dir)) or re_calculate_faps:
             nsamps.append(nsamples)
 
             for i, x in enumerate(samples):
-                if not with_aliases:
+                if not args.with_alias:
                     x_freqs = 2*np.pi/x
                 else:
                     x_freqs[0,:] = 2*np.pi/x
@@ -371,5 +384,5 @@ print(fip_peaks, file=f)
 
 
 # Show plot if indicated to do so
-if args.s:
+if args.show_fig:
     plt.show()
