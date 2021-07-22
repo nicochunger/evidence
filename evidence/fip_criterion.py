@@ -32,7 +32,7 @@ parser.add_argument(
     "-n", help="Maximum number of planets to use FIP periodogram. \
                 Default is 0 and this will get the maximum planets available.", type=int, default=0)
 parser.add_argument(
-    "--recalculate-fap", help="Wether to recalculate the FIP periodogram", action='store_true')
+    "--recalculate-fip", help="Wether to recalculate the FIP periodogram", action='store_true')
 parser.add_argument(
     "--with-alias", help="Whether to include aliases in the calculation of the FIP", action='store_true')
 parser.add_argument(
@@ -282,7 +282,7 @@ os.makedirs(f'fipnus', exist_ok=True)
 fapnu_dir = f'fipnus/fipnu_{target}_{runid}_maxpla{maxplanets}.txt'
 np.savetxt("fipnus/nu.txt", nu)
 
-if (not os.path.isfile(fapnu_dir)) or args.recalculate_fap:
+if (not os.path.isfile(fapnu_dir)) or args.recalculate_fip:
     # Matrix for fapnus. Rows are each run, columns the individial frequencies
     fapnu = np.ones([min_iters, nfreq])
     # Loop over runs

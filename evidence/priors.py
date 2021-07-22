@@ -4,7 +4,6 @@ Module with functions concerning Priors
 import numpy as n
 from scipy import stats, interpolate
 from scipy.stats import rv_continuous
-from pypolychord import priors
 
 # Number of points to sample CDF and get PPF from inversion
 N = 1e4
@@ -460,8 +459,12 @@ Beta = beta_gen(name='Beta distribution', shapes='a, b', a=0.0, b=1.0)
 Gamma = gamma_gen(name='Gamma distribution', shapes='alpha, beta',
                        a=0.0)
 
-SortedUniform = priors.SortedUniformPrior
-SortedLogUniform = priors.LogSortedUniformPrior
+try:
+    from pypolychord import priors
+    SortedUniform = priors.SortedUniformPrior
+    SortedLogUniform = priors.LogSortedUniformPrior
+except ImportError:
+    pass
 
 # Construct dictionary
 distdict = globals().copy()
