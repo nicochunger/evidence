@@ -70,7 +70,7 @@ class fip_plots():
             
             
 
-    def plot_clean(self,number_highlighted_peaks_in,
+    def plot_clean(self, number_highlighted_peaks_in, maxpla,
                    fip_orientation = 'up',
                    fip_label = None,
                    alpha=1,
@@ -268,11 +268,11 @@ class fip_plots():
         #plt.suptitle('FIP periodogram',fontsize=20,y=0.97)
         # ax1.legend(fontsize = 16, loc='best')
         plt.title(fipperio_title ,fontsize=20,y=1.05)   
-
-        plt.tight_layout() 
+        plt.tight_layout()
         
+        print(f"In plot I have Maxpla={maxpla}")
         if save:
-            string_save = self.starname.replace(' ', '_') + f'_FIP_periodogram_maxpla{number_highlighted_peaks_in}'
+            string_save = self.starname.replace(' ', '_') + f'_FIP_periodogram_maxpla{maxpla}'
             if save_tag is not None:
                 assert type(save_tag) == str, "save_tag has to be a string"
                 string_save += save_tag

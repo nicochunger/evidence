@@ -32,6 +32,8 @@ parser.add_argument(
     "-n", help="Maximum number of planets to use FIP periodogram. \
                 Default is 0 and this will get the maximum planets available.", type=int, default=0)
 parser.add_argument(
+    "-hp", help="Number of peaks to highlight. Default is equal to max number of planets.", type=int, default=0)
+parser.add_argument(
     "--recalculate-fip", help="Wether to recalculate the FIP periodogram", action='store_true')
 parser.add_argument(
     "--with-alias", help="Whether to include aliases in the calculation of the FIP", action='store_true')
@@ -124,12 +126,14 @@ def get_finished_runs(runs, max_npla=None):
 runs, nmod, min_iters = get_finished_runs(runs, max_npla=maxplanets)
 
 # Set the correct number of maxplanets if it was none or too large
-if (maxplanets != None) and (maxplanets > nmod - 1):
-    warnings.warn(f"Maximum number of planets specified ({maxplanets}) is larger \
-                    than the maximum available planets ({nmod-1}). Continuing with \
-                    maxplanets = {maxplanets}.", Warning)
-maxplanets = nmod - 1
-
+if maxplanets is None:
+    maxplanets = nmod -1
+elif maxplanets > nmod - 1:
+    warnings.warn(f"Maximum number of planets specified ({maxplanets}) is larger" +
+                  f" than the maximum available planets ({nmod-1}). Continuing with" +
+                  f" maxplanets = {nmod-1}.", Warning)
+    maxplanets = nmod - 1
+print(f"Using Max planets = {maxplanets}")
 # File to save relevant data
 save_path = os.path.join(dirname, f'results_{target}_{runid}_maxpla{maxplanets}.txt')
 f = open(save_path, 'w')
@@ -362,16 +366,22 @@ else:
 logfapnu_means = np.median(log10fips, axis=0)
 logfapnu_stds = np.std(log10fips, axis=0)
 
-highlighted_peaks = nmod - 1
-# highlighted_peaks = 0
+# Set number of peaks to highlight
+if args.hp == 0:
+    highlighted_peaks = nmod - 1
+    save_tag = None
+else:
+    highlighted_peaks = args.hp
+    save_tag = f'_peaks{args.hp}'
 
 fipnu_mean = np.mean(np.maximum(fapnu, 1e-15), axis=0)
 
 # Nathans FIP plot
-from evidence.polychord import fip_plots
+from evidence import fip_plots
 fipplot = fip_plots.fip_plots(np.flip(nu), np.flip(fipnu_cut[0,:]))
 fipplot.starname = target
-_, _, peaks_period, peaks_fip = fipplot.plot_clean(highlighted_peaks, save=True)
+print(f"I'm inputting {maxplanets} as maxpla in the plot_clean function!!!")
+_, _, peaks_period, peaks_fip = fipplot.plot_clean(highlighted_peaks, maxplanets, save=True, save_tag=save_tag)
 
 # Save peaks and FIP values of the peaks
 fip_peaks = pd.DataFrame(columns=['period', '-log10(fip)', 'fip'])

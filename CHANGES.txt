@@ -45,6 +45,8 @@ Release 0.2.0: TBA
     considered to be part of the same group. So all parameters with the 'SortedUniform'
     prior will be grouped to have sorted values in the prior. Same for log uniform
     prior.
+  - In the FIP criterion one can now indicate how many peaks to highlight in the
+    plot with the '-hp' tag.
 
 --------------------------------------------------------------------------------
 
