@@ -18,18 +18,12 @@ from evidence.rvmodel import RVModel
 from corner import corner
 
 
-def postprocess(path):
+def postprocess(path, order=True, plotcorner=False):
     """ Script that does a post processing of the nested sampling output. It analyses
     posterior samples and produces phase fold plots for the planets.
     It works with the output of both PolyChord and UltraNests. """
 
     # -------------------- SETUP ------------------------------
-    # Optional arguments
-    if len(sys.argv) > 1:
-        args = sys.argv[1:]
-    else:
-        args = []
-
     # Write all prints to a file to save for later
     save_path = os.path.join(path, 'results.txt')
     f = open(save_path, 'w')
@@ -94,6 +88,45 @@ def postprocess(path):
         weights = weighted_post['weight']
 
     print(f'\nNr. of samples in posterior: {len(samples)}', file=f)
+
+    # ------------- ORDER POSTERIOR SAMPLES ---------------------
+    if order:
+        planets = [] # Get all idxs of the parameters for each planet
+        planet_idxs = [] # Positions of the periods of all planets
+        for n in range(1, nplanets+1):
+            planets.append([])
+            for i, par in enumerate(parnames):
+                if f'planet{n}' in par:
+                    planets[n-1].append(i)
+                    if 'period' in par:
+                        planet_idxs.append(i)
+
+        # Swapping the planet samples so that the periods are always ordered
+        # TODO If at some point this is too slow a vectorized version has to be implemented
+        for idx, sample in samples.iterrows():
+            periods_tmp = np.zeros(nplanets)
+            sample_arr = sample.values.copy()
+            periods_tmp = sample_arr[planet_idxs]
+            # print(periods_tmp)
+            idxs = np.arange(len(sample), dtype=int)
+            # for n in range(1, nplanets+1):
+            #     periods_tmp[n-1] = sample[f'planet{n}_period']
+            if not np.all(periods_tmp[:-1] <= periods_tmp[1:]):
+                # Sort periods
+                sorted_periods_args = np.argsort(periods_tmp)
+                # Construct target index list
+                for i, par in enumerate(parnames):
+                    if 'planet' not in par:
+                        idxs[i] = i
+                    else:
+                        planet = int(par[6])
+                        new_pos = list(sorted_periods_args).index(planet-1)
+                        internal_pos = planets[planet-1].index(i)
+                        target = planets[new_pos][internal_pos]
+                        idxs[i] = target
+                # print(idxs)
+            samples.iloc[idx] = sample_arr[idxs]
+    # -----------------------------------------------------------
 
     medians = np.median(samples, axis=0)
     stds = np.std(samples, axis=0)
@@ -161,9 +194,11 @@ def postprocess(path):
     f.close()
     # --------------------------------------------------------
 
-
+    samples.to_csv('samples.csv', index=False)
 
     # --------------- POSTERIORS -----------------------------
+
+
     # Plotting posteriors for each parameter category
     print('\nPlotting posterior distributions...')
     # Identify parameter categories
@@ -297,7 +332,7 @@ def postprocess(path):
 
 
     # -------------------- CORNER PLOT -------------------------
-    if '-c' in args:
+    if plotcorner:
         print('Plotting corner plot...')
         corner_plot = corner(samples, labels=parnames, bins=40, show_titles=True,
                             quantiles=[0.02275, 0.1585, 0.5, 0.8415, 0.97725])
@@ -492,4 +527,10 @@ def semi_mayor_axis(P, mstar):
 
 
 if __name__ == "__main__":
-    postprocess(Path(__file__).parent.absolute())
+    import argparse
+    # Parsing of arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-ordering", help='Wether to order the posterior samples according to the planet periods.', action="store_false")
+    parser.add_argument("--plotcorner", help="Wether to make a corner plot of all parameters", action='store_true')
+    args = parser.parse_args()
+    postprocess(Path(__file__).parent.absolute(), order=args.no_ordering, plotcorner=args.plotcorner)
