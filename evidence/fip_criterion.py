@@ -4,11 +4,13 @@
 """ 
 How to use this script: 
 
-This file will automatically be placed in the parent folder of the PolyChord or
-UltraNest runs of a single target and runid. Open a terminal in that folder and
+This file will automatically be placed in the parent folder of the Nested Sampling 
+runs of a single target and runid. Open a terminal in that folder and
 run "python fip_criterion.py". The script will automatically detect which planet
 models finished running and how many iterations were done. It then computes the
 FIP periodogram (Hara et al. 2021), plots it, and prints some results to a file.
+
+Please refer to the help for more information on additional options of the script.
 """
 
 # Python imports
@@ -60,17 +62,12 @@ if maxplanets == 0:
     maxplanets = None
 elif maxplanets < 0:
     parser.error("The maximum number of planets must be a positive integer.")
-# try:
-#     maxplanets = int(sys.argv[1])
-# except:
-#     maxplanets = None
 
 
 def get_period_columns(output):
     """ Gets the indices of the columns in the posterior samples where all the
     planet periods are. """
 
-    # columns = list(output.posterior.samples.columns)
     columns = output.parnames
     idxs = [] # Indices for the columns where the planet periods are located
     for i, col in enumerate(columns):
@@ -357,7 +354,7 @@ if len(diffs[check]) > 0:
     convergence_fails['max-min in FIP'] = diffs[check]
     print(convergence_fails)
     print('', file=f)
-    print(convergence_fails, file=f)
+    # print(convergence_fails, file=f)
 else:
     print("Convergence achieved!")
 

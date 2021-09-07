@@ -37,7 +37,7 @@ def read_config(configfile, nplanets=None):
                 num_planet_dicts += 1
 
         # Check that nplanets doesn't exceed the number of planets dicts
-        # EXCEPT if there is only 1
+        # except if there is only 1
         if num_planet_dicts > 1 and nplanets > num_planet_dicts:
             raise ValueError(
                 "Not enough planet dictionaries for the requested number of planets.")
@@ -73,6 +73,9 @@ def read_config(configfile, nplanets=None):
 
 
 def get_parnames(inputdict):
+    """ 
+    Get all the names of the parameters
+    """
     parnames = []
     fixparnames = []
     for obj in inputdict:
@@ -85,6 +88,9 @@ def get_parnames(inputdict):
 
 
 def get_fixedparvalues(inputdict):
+    """ 
+    Get a dictionary with the fixed paramaters
+    """
     fpdict = {}
     for obj in inputdict:
         for par in inputdict[obj]:
@@ -95,22 +101,24 @@ def get_fixedparvalues(inputdict):
 
 def read_data(datadict):
     """ 
-    Function that reads all the datafiles and loads them into pandas DataFrames. 
+    Function that reads all the datafiles and loads them into a pandas DataFrames. 
     """
 
     for inst in datadict:
         # Dictionary with paramteres to read datafile
         kwargs = datadict[inst]['kwargs']
 
-        # Read datafile file
+        # Read data file
         data = pd.read_csv(datadict[inst]['datafile'], **kwargs)
         datadict[inst]['data'] = data
     return
 
 
 def read_priors(inputdict, rundict):
-    """ Reads the input dict and return a dictionary with all parameters and
-    their respective priors. """
+    """ 
+    Reads the input dict and return a dictionary with all parameters and
+    their respective priors.
+    """
 
     priors = {}
 

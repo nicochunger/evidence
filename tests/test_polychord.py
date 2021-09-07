@@ -97,23 +97,16 @@ def test_gaussian_1d():
     # Check that evidence is correct
     assert abs(output.logZ + 2.0) < 0.5
     
-    # Check that output pickle is generated
-    output_path = os.path.join(output.base_dir, '..', output.file_root+'.dat')
-    assert os.path.exists(output_path)
-
-    # Check that post processing script is copied correctly
-    post_path = os.path.join(output.base_dir, '../post_processing.py')
-    assert os.path.exists(post_path)
-
-    # # Check that model files are copied correctly
-    model_path = os.path.join(output.base_dir, '../model_gaussian_example.py')
-    assert os.path.exists(model_path)
-
-    # Check that the post processing scirpt has run
-    result_path = os.path.join(output.base_dir, '../results.txt')
-    assert os.path.exists(result_path)
-
+    # Clean old runs, it keep the newest one so the checks should pass
     clean_runs()
+
+    # Check that output files were generated
+    base_dir_parent = Path(output.base_dir).parent.absolute()
+    assert os.path.isfile(os.path.join(base_dir_parent, output.file_root+'.pkl'))
+    assert os.path.isfile(os.path.join(base_dir_parent, 'post_processing.py'))
+    assert os.path.isfile(os.path.join(base_dir_parent, 'results.txt'))
+    assert os.path.isfile(os.path.join(base_dir_parent, 'model_gaussian_example.py'))
+
     return
 
 
@@ -145,7 +138,16 @@ def test_gaussian_2d():
 
     assert abs(output.logZ + 4.15) < 0.5
 
+    # Clean old runs, it keep the newest one so the checks should pass
     clean_runs()
+    
+    # Check that output files were generated
+    base_dir_parent = Path(output.base_dir).parent.absolute()
+    assert os.path.isfile(os.path.join(base_dir_parent, output.file_root+'.pkl'))
+    assert os.path.isfile(os.path.join(base_dir_parent, 'post_processing.py'))
+    assert os.path.isfile(os.path.join(base_dir_parent, 'results.txt'))
+    assert os.path.isfile(os.path.join(base_dir_parent, 'model_gaussian_example.py'))
+
     return
 
 
@@ -168,7 +170,7 @@ def test_51Peg_k1_d0():
     assert os.path.isfile(os.path.join(output.base_dir, '../post_processing.py'))
     assert os.path.isfile(os.path.join(output.base_dir, '../results.txt'))
     assert os.path.isfile(os.path.join(output.base_dir, '../model_51Peg_example.py'))
-    assert os.path.isfile(os.path.join(output.base_dir, '../'+output.file_root+'.dat'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../'+output.file_root+'.pkl'))
 
     return
 
@@ -191,7 +193,7 @@ def test_51Peg_k1_d1():
     assert os.path.isfile(os.path.join(output.base_dir, '../post_processing.py'))
     assert os.path.isfile(os.path.join(output.base_dir, '../results.txt'))
     assert os.path.isfile(os.path.join(output.base_dir, '../model_51Peg_example.py'))
-    assert os.path.isfile(os.path.join(output.base_dir, '../'+output.file_root+'.dat'))
+    assert os.path.isfile(os.path.join(output.base_dir, '../'+output.file_root+'.pkl'))
 
     clean_runs()
     return

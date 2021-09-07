@@ -132,8 +132,8 @@ def run(model, rundict, priordict, polysettings=None):
         sortedloguni_params_idxs = []
         for i in range(ndim):
             param = parnames[i]
-            # TODO Check for isinstance() SortedUniformPrior or LogSortedUniformPrior
-            # In that case for now skip the priortransform calculation and keep track of the
+            # Check for instances of SortedUniformPrior or LogSortedUniformPrior
+            # In that case for now skip the priortransform calculation and keep track
             # of the parameters with the same sorted prior.
             if isinstance(priordict[param], priors.SortedUniformPrior):
                 sorteduni_params_idxs.append(i)
@@ -151,11 +151,6 @@ def run(model, rundict, priordict, polysettings=None):
 
         if len(sortedloguni_params_idxs) > 0:
             theta[sortedloguni_params_idxs] = prior_sortloguni(hypercube[sortedloguni_params_idxs])
-
-
-        # print(parnames)
-        # print(hypercube)
-        # print(theta)
 
         return theta
 

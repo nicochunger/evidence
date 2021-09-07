@@ -47,6 +47,11 @@ Release 0.2.0: TBA
     prior.
   - In the FIP criterion one can now indicate how many peaks to highlight in the
     plot with the '-hp' tag.
+  - The post-processing now has the option to order the samples so that the
+    planets are ordered according to their period. This is to remove the multimodal
+    shape of many planet posteriors.
+  - The post-processing now also separates the statistics for mean/std and
+    median/68percentiles
 
 --------------------------------------------------------------------------------
 

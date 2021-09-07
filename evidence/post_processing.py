@@ -90,7 +90,7 @@ def postprocess(path, order=True, plotcorner=False):
     print(f'\nNr. of samples in posterior: {len(samples)}', file=f)
 
     # ------------- ORDER POSTERIOR SAMPLES ---------------------
-    if order:
+    if order and nplanets is not None:
         planets = [] # Get all idxs of the parameters for each planet
         planet_idxs = [] # Positions of the periods of all planets
         for n in range(1, nplanets+1):
@@ -128,23 +128,46 @@ def postprocess(path, order=True, plotcorner=False):
             samples.iloc[idx] = sample_arr[idxs]
     # -----------------------------------------------------------
 
-    medians = np.median(samples, axis=0)
+    means = np.mean(samples, axis=0)
     stds = np.std(samples, axis=0)
+    # medians = np.median(samples, axis=0)
+    medians_15p, medians, medians_84p = np.percentile(samples, [15.865, 50, 84.135], axis=0)
+    error_15p = medians_15p - medians
+    error_84p = medians_84p - medians
 
     # Initialize DataFrame
-    params = pd.DataFrame(index=parnames)
-    params['Median'] = medians
-    params['Std'] = stds
+    params_mean = pd.DataFrame(index=parnames)
+    params_mean['Mean'] = means
+    params_mean['Std'] = stds
+
+    params_median = pd.DataFrame(index=parnames)
+    params_median['Median'] = medians
+    params_median['15% Quantile'] = medians_15p
+    params_median['84% Quantile'] = medians_84p
+    params_median['Error lower'] = error_15p
+    params_median['Error upper'] = error_84p
+
+    params_prior = pd.DataFrame(index=parnames)
     try:
         # Add prior for each parameter
-        params['Prior'] = pd.Series(output.priors)
+        params_prior['Prior'] = pd.Series(output.priors)
     except:
         pass
 
-    print(f'Median, error and prior for each parameter', file=f)
-    pd.set_option("display.max_columns", 4)
-    print(params, file=f)
-    print(params)
+    pd.set_option("display.max_columns", None)
+    pd.set_option('display.expand_frame_repr', False)
+    print(f'\nMean and standard deviation for each parameter', file=f)
+    print(params_mean, file=f)
+    print('')
+    print(params_mean)
+    print(f'\nMedian and 68% upper and lower quantiles for each parameter', file=f)
+    print(params_median, file=f)
+    print('')
+    print(params_median)
+    print(f'\nPrior used for each parameter', file=f)
+    print(params_prior, file=f)
+    print('')
+    print(params_prior)
 
     print('\n============== Planet parameters ==================', file=f)
 
@@ -154,17 +177,17 @@ def postprocess(path, order=True, plotcorner=False):
             try:
                 from uncertainties import ufloat, umath
                 # Planet properties calculations
-                K = ufloat(params['Median'][f'planet{i+1}_k1'], params['Std'][f'planet{i+1}_k1'])
+                K = ufloat(params_mean['Mean'][f'planet{i+1}_k1'], params_mean['Std'][f'planet{i+1}_k1'])
                 period = ufloat(
-                    params['Median'][f'planet{i+1}_period'], params['Std'][f'planet{i+1}_period'])
+                    params_mean['Mean'][f'planet{i+1}_period'], params_mean['Std'][f'planet{i+1}_period'])
 
                 # Eccentricity extraction
                 if f'planet{i+1}_ecc' in parnames:
                     ecc = ufloat(
-                        params['Median'][f'planet{i+1}_ecc'], params['Std'][f'planet{i+1}_ecc'])
+                        params_mean['Mean'][f'planet{i+1}_ecc'], params_mean['Std'][f'planet{i+1}_ecc'])
                 else:
-                    secos = ufloat(params['Median'][f'planet{i+1}_secos'], params['Std'][f'planet{i+1}_secos'])
-                    sesin = ufloat(params['Median'][f'planet{i+1}_sesin'], params['Std'][f'planet{i+1}_sesin'])
+                    secos = ufloat(params_mean['Mean'][f'planet{i+1}_secos'], params_mean['Std'][f'planet{i+1}_secos'])
+                    sesin = ufloat(params_mean['Mean'][f'planet{i+1}_sesin'], params_mean['Std'][f'planet{i+1}_sesin'])
                     ecc = secos**2 + sesin**2
 
                 # Print planet parameters to results file
@@ -277,7 +300,7 @@ def postprocess(path, order=True, plotcorner=False):
         # Save figure
         # fig.tight_layout()
         if 'planet' in cat:
-            filename = f"{cat}_{params['Median'][f'{cat}_period']:.2f}_posteriors.png"
+            filename = f"{cat}_{params_mean['Mean'][f'{cat}_period']:.2f}_posteriors.png"
         else:
             filename = f'{cat}_posteriors.png'
 
@@ -299,7 +322,7 @@ def postprocess(path, order=True, plotcorner=False):
             for i in range(nplanets):
                 period_post = samples[f'planet{i+1}_period']
                 # weighted_mean = np.average(period_post, weights=weights)
-                median = params['Median'][f'planet{i+1}_period']
+                median = params_mean['Mean'][f'planet{i+1}_period']
 
                 # Histogram
                 _, bins = np.histogram(period_post, bins='auto')
@@ -351,8 +374,8 @@ def postprocess(path, order=True, plotcorner=False):
         print('Plotting phase folds for the planets...')
         # Construct pardict with the median of each parameter
         pardict = {}
-        for key in params.index:
-            pardict[key] = params['Median'][key]
+        for key in params_mean.index:
+            pardict[key] = params_mean['Mean'][key]
         pardict.update(model.fixedpardict)
 
         # Initialize figure
@@ -366,7 +389,7 @@ def postprocess(path, order=True, plotcorner=False):
         # Get plot order of planets, from lowest to highest period
         periods = np.zeros(nplanets)
         for i in range(nplanets):
-            periods[i] = params['Median'][f'planet{i+1}_period']
+            periods[i] = params_mean['Mean'][f'planet{i+1}_period']
         periods_pos = np.argsort(periods)
 
         # Loop through the planets
