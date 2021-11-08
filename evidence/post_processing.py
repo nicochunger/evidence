@@ -217,7 +217,7 @@ def postprocess(path, order=True, plotcorner=False):
     f.close()
     # --------------------------------------------------------
 
-    samples.to_csv('samples.csv', index=False)
+    # samples.to_csv('samples.csv', index=False)
 
     # --------------- POSTERIORS -----------------------------
 
@@ -471,7 +471,7 @@ def postprocess(path, order=True, plotcorner=False):
     # plt.show()
     print("Done!")
 
-    return
+    return output
 
 
 def load_model(output, parnames):
@@ -483,7 +483,10 @@ def load_model(output, parnames):
     mod = importlib.import_module(output.model_name)
 
     # Initialize the model with the data and datadict
-    model = mod.Model(output.fixedpardict, output.datadict, parnames)
+    try:
+        model = mod.Model(output.fixedpardict, output.datadict, parnames)
+    except TypeError:
+        model = mod.Model(output.fixedpardict, output.datadict, parnames, output.rundict)
 
     return model
 
@@ -556,4 +559,4 @@ if __name__ == "__main__":
     parser.add_argument("--no-ordering", help='Wether to order the posterior samples according to the planet periods.', action="store_false")
     parser.add_argument("--plotcorner", help="Wether to make a corner plot of all parameters", action='store_true')
     args = parser.parse_args()
-    postprocess(Path(__file__).parent.absolute(), order=args.no_ordering, plotcorner=args.plotcorner)
+    output = postprocess(Path(__file__).parent.absolute(), order=args.no_ordering, plotcorner=args.plotcorner)
