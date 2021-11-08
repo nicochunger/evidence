@@ -1,5 +1,5 @@
 """ 
 The init won't have anything.
 
-Each evidence estimator will be it's own submodule
+Each evidence estimator is it's own submodule
 """

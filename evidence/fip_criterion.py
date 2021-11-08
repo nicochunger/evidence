@@ -380,7 +380,7 @@ fipnu_mean = np.mean(np.maximum(fapnu, 1e-15), axis=0)
 
 # Nathans FIP plot
 from evidence import fip_plots
-fipplot = fip_plots.fip_plots(np.flip(nu), np.flip(fipnu_cut[0,:]))
+fipplot = fip_plots.FIP_plots(np.flip(nu), np.flip(fipnu_cut[0,:]))
 fipplot.starname = target
 print(f"I'm inputting {maxplanets} as maxpla in the plot_clean function!!!")
 _, _, peaks_period, peaks_fip = fipplot.plot_clean(highlighted_peaks, maxplanets, save=True, save_tag=save_tag)

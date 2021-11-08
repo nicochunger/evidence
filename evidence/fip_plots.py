@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Sep 24 00:09:27 2020
 
-@author: nathan
 """
+@author: Nathan & Nicolas
+"""
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
-class fip_plots():
+class FIP_Plots():
     def __init__(self, freq_radday = np.ones(1), fips = np.ones(1),
                        starname = None):
 
@@ -35,7 +35,7 @@ class fip_plots():
             
     def find_peaks(self):
         '''
-        define the peaks appearing in the smoothed solution
+        Define the peaks appearing in the smoothed solution
         solution: their frequencies self.omega_peaks
         their values self.peakvalues, and decreasing order
         self.indexsort
@@ -329,11 +329,6 @@ class fip_plots():
         fig, (ax1, ax2) = plt.subplots(2, 1, 
              figsize=(6,6),sharex=True,gridspec_kw={
                            'height_ratios': [1,zoom_factor]})        
-#        fig = plt.figure(figsize=(6,7))
-#        spec = gridspec.GridSpec(ncols=1, nrows=2,
-#                         height_ratios=[2, 1])
-#        ax1 = fig.add_subplot(spec[0])
-#        ax2 = fig.add_subplot(spec[1], sharex = ax1)
         
         #ax1.set_aspect('equal')
         #ax2.set_aspect('equal')
@@ -345,13 +340,8 @@ class fip_plots():
       
         ax2.set_xlabel('True inclusion probability (TIP)' 
                    ,fontsize=16)
-        #ax2.set_xlabel('True inclusion probability (TIP)' 
-        #           ,fontsize=16)      
-        #ax1.set_aspect('equal')
         
-        ax1.set_ylabel('Fraction of success', fontsize=16) 
-#        ax2.yaxis.set_label_position("right")
-#        ax2.yaxis.tick_right()
+        ax1.set_ylabel('Fraction of success', fontsize=16)
         
         ax2.set_ylabel('Fration of success\nnormalized', fontsize=16) 
         ax1.tick_params(axis='both', which='major', labelsize=14)
@@ -372,16 +362,6 @@ class fip_plots():
         plt.gcf().subplots_adjust(left=0.23)
         if save:
             plt.savefig(os.path.join(path,f'alphacheck_{suffix}.pdf'), fmt='pdf')
-
-#import fip_plots
-#c = fip_plots.fip_plots()
-#c.fiplevel = np.array([0, .2, .4, .6,.8,.9,.95,.99])
-#mm = np.zeros((5,8))
-#for i in range(5):
-#    mm[i,:] = c.fiplevel + np.random.randn(8)*.1
-#c.truepos = mm
-#c.bernouilli_unc = np.ones((5,8))*.1
-#c.plot_alpha(suffix='test')
 
 
 def sci_notation(num, decimal_digits=1, precision=None, exponent=None):
