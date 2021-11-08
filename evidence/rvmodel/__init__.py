@@ -193,7 +193,14 @@ class RVModel(BaseModel):
 
         # RV prediction
         if self.nplanets > 0:
-            rvm += self.kep_rv(pardict, self.time)
+            rv_prediction = self.kep_rv(pardict, self.time)
+            # Check if keplerian solution was invalid
+            if rv_prediction is not None:
+                rvm += rv_prediction
+            else:
+                # If solution was invalid return a Likelihood of 0
+                # log(L) of -1e30
+                return -1e30
 
         # Add drift (if there is one)
         if self.drift_in_model:
@@ -364,7 +371,13 @@ class RVModel(BaseModel):
         for i in range(1, self.nplanets+1):
             # Skip planet if it is the one to be exluded
             if i != exclude_planet:
-                rv_planet[i-1] = self.modelk(pardict, time, planet=i)
+                planet_kep = self.modelk(pardict, time, planet=i)
+                # Check if modelk returned an invalid solution
+                if planet_kep is not None:
+                    rv_planet[i-1] = planet_kep
+                else:
+                    # Return None if the solution was invalid
+                    return None
 
         # Sum effect of all planets to predicted velocity
         rv_prediction = rv_planet.sum(axis=0)
@@ -414,12 +427,16 @@ class RVModel(BaseModel):
             sesin = pardict[f'planet{planet}_sesin']
             ecc = secos**2 + sesin**2
             omega_rad = np.arctan2(sesin, secos)
+            if ecc > 1:
+                return None
 
         elif f'planet{planet}_ecos' in pardict:
             ecos = pardict[f'planet{planet}_ecos']
             esin = pardict[f'planet{planet}_esin']
             ecc = np.sqrt(ecos**2 + esin**2)
             omega_rad = np.arctan2(esin, ecos)
+            if ecc > 1:
+                return None
 
         else:
             try:
