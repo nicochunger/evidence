@@ -87,6 +87,7 @@ def run(model, rundict, priordict, polysettings=None):
         post processing script.
     """
 
+
     # Create list of parameter names
     parnames = model.parnames
     rundict_keys = list(rundict.keys())
@@ -114,6 +115,12 @@ def run(model, rundict, priordict, polysettings=None):
                 planets[n-1].append(i)
                 if 'period' in par:
                     planet_idxs.append(i)
+
+    if rank == 0:
+        if nplanets == 1:
+            print(f'\nRunning {rundict["target"]} with {nplanets} planet\n')
+        else:
+            print(f'\nRunning {rundict["target"]} with {nplanets} planets\n')
 
     # Prepare run
     nderived = 0
@@ -173,6 +180,8 @@ def run(model, rundict, priordict, polysettings=None):
     # Create PolyChordSettings object for this run
     settings = set_polysettings(
         rundict, polysettings, ndim, nderived, isodate, parnames)
+
+    print(f'Saving results to {os.path.join(rundict["save_dir"], settings.file_root)}\n')
 
     # Initialise clocks
     ti = time.process_time()
