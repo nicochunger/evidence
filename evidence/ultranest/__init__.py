@@ -10,7 +10,7 @@ from pathlib import Path
 
 from evidence.post_processing import postprocess
 
-# PolyChord imports
+# UltraNest imports
 try:
     from ultranest import ReactiveNestedSampler
     import ultranest.stepsampler
@@ -31,7 +31,7 @@ except ImportError:
 
 def run(model, rundict, priordict, ultrasettings=None):
     """ 
-    Runs PolyChord on the chosen data and model. When PolyChord is finished
+    Runs UltraNest on the chosen data and model. When UltraNest is finished
     running it automatically runs a post processing script on the output creating
     plots of the posterior and saving basic information like the evidence and
     run settings on a text file for future reference.
@@ -62,7 +62,7 @@ def run(model, rundict, priordict, ultrasettings=None):
                                      star_radius (radius of star in solar radii),
                                      star_rot (roation period of star). These
                                      can be be ufloats to include the uncertainty.
-            savedir (optional) : Save directory for the output of PolyChord
+            savedir (optional) : Save directory for the output of UltraNest
             order_planets (optionsl) : Boolean indicating if the planets should
                                        be ordered by period. This is to avoid
                                        periods jumping between the different 
@@ -75,14 +75,16 @@ def run(model, rundict, priordict, ultrasettings=None):
         physical parameter distributed according to the prior. 
         The method log_likelihood in your custom model should take the same order
         or parameters that results from calling list(priordict.keys()).
-    polysettings : dict, optional
-        Dictionary containing custom parameters for PolyChord setting like nlive
-        or nrepeats. If None are given the defualt PolyChord settings.
+    ultrasettings : dict, optional
+        Dictionary containing custom parameters for UltraNest setting like nlive
+        or nrepeats. If None are given the defualt UltraNest settings are used.
 
     Returns
     -------
-    output : PolyChordOutput object
-        Object with the PolyChord output. 
+    output : Output object
+        Object with the all sorts of outputs from the Nested Sampling run.
+        Very similar in structure to the output from PolyChord but without all
+        custom PolyChord objects. 
         Several attributes are added before returning. These are used for the 
         post processing script.
     """
@@ -150,7 +152,7 @@ def run(model, rundict, priordict, ultrasettings=None):
     if size > 1:
         isodate = comm.bcast(isodate, root=0)
 
-    # Create PolyChordSettings object for this run
+    # Create settings object for this run
     settings = set_ultrasettings(rundict, ultrasettings, ndim, nderived, isodate, parnames)
 
     # Find and indicate wrapped (circular) parameters like phases
@@ -240,7 +242,7 @@ def run(model, rundict, priordict, ultrasettings=None):
         # print(base_dir_parent)
         # run_label = os.path.basename(base_dir_parent)
         # print(run_label)
-        dump2pickle_poly(output, output.file_root+'.pkl')
+        dump2pickle(output, output.file_root+'.pkl')
 
         # Copy post processing script to this run's folder
         parent = Path(__file__).parent.parent.absolute()
@@ -257,7 +259,7 @@ def run(model, rundict, priordict, ultrasettings=None):
     return #output
 
 
-def dump2pickle_poly(output, filename, savedir=None):
+def dump2pickle(output, filename, savedir=None):
     """ 
     Takes the output from UltraNest and saves it as a pickle file.
 
@@ -325,9 +327,9 @@ def set_ultrasettings(rundict, ultrasettings, ndim, nderived, isodate, parnames)
     """
 
     rundict_keys = list(rundict.keys())
-    # Define PolyChord settings
-    # Use the settings provided in polysettings otherwise use default
-    # Definition of default values for PolyChordSettings
+    # Define UltraNest settings
+    # Use the settings provided in ultrasettings otherwise use default
+    # Definition of default values for the UltraNest settings
     default_settings = {'nlive': 25*ndim,
                         'nsteps': 3*ndim,
                         'dlogz': 0.5,
@@ -382,10 +384,6 @@ def set_ultrasettings(rundict, ultrasettings, ndim, nderived, isodate, parnames)
 
     # Update settings dictionary with fileroot and basedir
     default_settings.update({'log_dir': base_dir, 'file_root': file_root})
-
-    # Create PolyChorSettings object and assign settings
-    # settings = PolyChordSettings(ndim, nderived, **default_settings)
-    # TODO Think about how to implement resumes
 
     return default_settings
 
