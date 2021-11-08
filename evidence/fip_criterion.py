@@ -259,11 +259,16 @@ pky = np.exp(logpky)  # Normalization
 # --------------------------------------
 
 # Create dataframe for evidence results
-evidence_results = pd.DataFrame(columns=['log(Z)', 'std', 'p(k|y)', 'runtime', 'rstd'])
+evidence_results = pd.DataFrame(columns=['log(Z)', 'std', 'delta_log(Z)', 'p(k|y)', 'runtime', 'rstd'])
 evidence_results = evidence_results.rename_axis('Planets')
+
+# Calculate delta in logZ
+deltaZ = np.zeros(nmod)
+deltaZ[1:] = logZs[1:] - logZs[:-1]
 
 evidence_results['log(Z)'] = logZs
 evidence_results['std'] = stdlogZs
+evidence_results['delta_log(Z)'] = deltaZ
 evidence_results['p(k|y)'] = pky
 evidence_results['runtime'] = runtime
 evidence_results['rstd'] = stdruntime
