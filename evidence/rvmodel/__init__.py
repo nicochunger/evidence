@@ -492,3 +492,39 @@ class RVModel(BaseModel):
                              c_double(tol))
 
         return nu
+
+    def true_anomaly_py(self, ma, ecc, tol=1.0e-4):
+        """ 
+        Takes the mean anomaly and the eccentricity and computes the true
+        anomaly. This is done using the Newton-Raphson method and is the most
+        time consuming part of the entire likelihood calculation. That's why
+        this function is written in C and called here from python. Doing this
+        has shown to be much quicker than just writing it directly in python.
+
+        Parameters
+        ----------
+        ma : ndarray
+            Array with the values of the mean anomaly.
+        ecc : float
+            Eccentricity
+
+        Returns
+        -------
+        nu : ndarray
+            Array with the values for the true anomaly
+        """
+
+        E = ma.copy()
+        E0 = ma.copy()
+
+        while np.any(np.abs(E-E0) > tol):
+            E0 = E
+
+            ff = E - ecc * np.sin(E) - ma
+            dff = 1 - ecc * np.cos(E)
+
+            E = E0 - ff / dff
+
+        nu = 2 * np.arctan(np.sqrt((1. + ecc) / (1. - ecc)) * np.tan(E / 2.))
+
+        return nu

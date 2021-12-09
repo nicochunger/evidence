@@ -283,6 +283,9 @@ print(evidence_results)
 print('', file=f)
 print(evidence_results, file = f)
 
+# Save file with evidence results
+evidence_results.to_csv(f'evidences_{target}_{runid}_maxpla{maxplanets}.csv')
+
 # Create directory for the fipnus
 os.makedirs(f'fipnus', exist_ok=True)
 fapnu_dir = f'fipnus/fipnu_{target}_{runid}_maxpla{maxplanets}.txt'
@@ -380,7 +383,7 @@ fipnu_mean = np.mean(np.maximum(fapnu, 1e-15), axis=0)
 
 # Nathans FIP plot
 from evidence import fip_plots
-fipplot = fip_plots.FIP_plots(np.flip(nu), np.flip(fipnu_cut[0,:]))
+fipplot = fip_plots.FIP_Plots(np.flip(nu), np.flip(fipnu_cut[0,:]))
 fipplot.starname = target
 print(f"I'm inputting {maxplanets} as maxpla in the plot_clean function!!!")
 _, _, peaks_period, peaks_fip = fipplot.plot_clean(highlighted_peaks, maxplanets, save=True, save_tag=save_tag)
@@ -390,9 +393,20 @@ fip_peaks = pd.DataFrame(columns=['period', '-log10(fip)', 'fip'])
 fip_peaks['period'] = peaks_period
 fip_peaks['-log10(fip)'] = peaks_fip
 fip_peaks['fip'] = 10**(-peaks_fip)
-
+# Print to results file
 print('\nFIP peaks:', file=f)
 print(fip_peaks, file=f)
+
+
+# Save a file with the FIP peaks
+fip_peaks_all = pd.DataFrame(columns=['period', '-log10(fip)', 'fip'])
+fip_peaks_all['period'] = 2*np.pi / fipplot.omega_peaks
+fip_peaks_all['-log10(fip)'] = fipplot.peakvalues
+fip_peaks_all['fip'] = 10**(-1*fipplot.peakvalues)
+# Sort by FIP values
+fip_peaks_all.sort_values('-log10(fip)', ascending=False, inplace=True)
+# Save
+fip_peaks_all.to_csv(f'fippeaks_{target}_{runid}_maxpla{maxplanets}.csv')
 
 
 # Show plot if indicated to do so

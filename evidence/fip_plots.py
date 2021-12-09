@@ -68,6 +68,7 @@ class FIP_Plots():
             self.omega_peaks = []
             self.peakvalues = []
             
+        return self.omega_peaks, self.peakvalues
             
 
     def plot_clean(self, number_highlighted_peaks_in, maxpla,
