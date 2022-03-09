@@ -100,7 +100,16 @@ def get_finished_runs(runs, max_npla=None):
                 continue
         # Check that the run converged and finished
         if os.path.isfile(os.path.join(run, 'results.txt')):
-            finished[idx] = True
+            # Check that there actually samples in the run
+            with open(os.path.join(run, 'results.txt'), 'r') as f:
+                lines = f.readlines()
+                line_check = "Nr. of samples in posterior: "
+                for line in lines:
+                    if line_check in line:
+                        nr_samples = int(line.strip(line_check))
+                        if nr_samples > 0:
+                            finished[idx] = True
+                            break
 
     # Only keep finished runs
     runs = runs[finished]
@@ -284,7 +293,7 @@ print('', file=f)
 print(evidence_results, file = f)
 
 # Save file with evidence results
-evidence_results.to_csv(f'evidences_{target}_{runid}_maxpla{maxplanets}.csv')
+evidence_results.to_csv(f'evidences_{target}_{runid}_maxpla{maxplanets}.csv', index=False)
 
 # Create directory for the fipnus
 os.makedirs(f'fipnus', exist_ok=True)
@@ -406,7 +415,7 @@ fip_peaks_all['fip'] = 10**(-1*fipplot.peakvalues)
 # Sort by FIP values
 fip_peaks_all.sort_values('-log10(fip)', ascending=False, inplace=True)
 # Save
-fip_peaks_all.to_csv(f'fippeaks_{target}_{runid}_maxpla{maxplanets}.csv')
+fip_peaks_all.to_csv(f'fippeaks_{target}_{runid}_maxpla{maxplanets}.csv', index=False)
 
 
 # Show plot if indicated to do so
